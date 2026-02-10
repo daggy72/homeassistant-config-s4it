@@ -1,0 +1,587 @@
+- id: '1756302982626'
+  alias: 'Turn ON/OFF kitchen appliances '
+  description: ''
+  triggers:
+  - trigger: time
+    at: 08:00:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    - sat
+    alias: morning
+    id: morning
+  - trigger: time
+    at: '19:00:00'
+    alias: evening
+    id: evening
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id:
+        - morning
+      sequence:
+      - action: homeassistant.turn_on
+        target:
+          device_id:
+          - 38fb9befcf779e1440cd0ddfc6251b11
+          - b84eccfdd08a303ccb0f277d25676c3a
+        data: {}
+    - conditions:
+      - condition: trigger
+        id:
+        - evening
+      sequence:
+      - action: homeassistant.turn_off
+        target:
+          device_id:
+          - 38fb9befcf779e1440cd0ddfc6251b11
+          - b84eccfdd08a303ccb0f277d25676c3a
+        data: {}
+  mode: single
+- id: '1756913130032'
+  alias: Chiller&Fancoils
+  description: ''
+  triggers:
+  - alias: morning
+    trigger: time
+    at: 08:00:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    id: morning
+  - trigger: time
+    at: '19:00:00'
+    alias: evening
+    id: evening
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id:
+        - morning
+      - condition: numeric_state
+        entity_id: weather.forecast_home
+        attribute: temperature
+        above: 22
+      sequence:
+      - action: homeassistant.turn_on
+        metadata: {}
+        data: {}
+        target:
+          label_id: climate
+    - conditions:
+      - condition: trigger
+        id:
+        - evening
+      sequence:
+      - action: homeassistant.turn_off
+        metadata: {}
+        data: {}
+        target:
+          label_id: climate
+  mode: single
+- id: '1758196497361'
+  alias: 'Auto Unlock Wallbox '
+  description: ''
+  triggers:
+  - trigger: zone
+    entity_id: device_tracker.daggys_iphone
+    zone: zone.home
+    event: enter
+  conditions: []
+  actions:
+  - device_id: 7dea3fde1d0c4a81409d4902e41d26ad
+    domain: lock
+    entity_id: ff10635796ac846572b991c00c0e076b
+    type: unlock
+  - delay:
+      hours: 0
+      minutes: 5
+      seconds: 0
+      milliseconds: 0
+  mode: single
+- id: '1760461980103'
+  alias: Climate MT Winter
+  description: ''
+  triggers:
+  - alias: morning (7:00)
+    trigger: time
+    at: 07:00:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    id: morning7
+  - trigger: time
+    at: 08:00:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    id: morning8
+    alias: morning (8:00)
+  - trigger: numeric_state
+    entity_id:
+    - sensor.up_sense_temperature_2
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+    above: 24.5
+    id: MT-Temp High
+  - trigger: numeric_state
+    entity_id:
+    - sensor.up_sense_temperature_2
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+    below: 22.5
+    id: MT-Temp Low
+  - trigger: time
+    at: '19:00:00'
+    alias: evening (19:00)
+    id: evening19
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id:
+        - morning7
+        - morning8
+      - condition: numeric_state
+        entity_id: weather.forecast_home
+        attribute: temperature
+        below: 20
+      sequence:
+      - action: homeassistant.turn_on
+        metadata: {}
+        data: {}
+        target:
+          entity_id:
+          - switch.shellypro4pm_ece334ea3fc4_switch_1
+    - conditions:
+      - condition: trigger
+        id:
+        - evening19
+      sequence:
+      - action: homeassistant.turn_off
+        metadata: {}
+        data: {}
+        target:
+          label_id: climate
+    - conditions:
+      - condition: trigger
+        id:
+        - MT-Temp Low
+      - condition: time
+        after: 08:00:00
+        before: '18:00:00'
+        weekday:
+        - mon
+        - tue
+        - wed
+        - thu
+        - fri
+      sequence:
+      - action: switch.turn_on
+        metadata: {}
+        data: {}
+        target:
+          entity_id:
+          - switch.shellypro4pm_ece334ea3fc4_switch_3
+    - conditions:
+      - condition: trigger
+        id:
+        - MT-Temp High
+      sequence:
+      - action: switch.turn_off
+        metadata: {}
+        data: {}
+        target:
+          entity_id:
+          - switch.shellypro4pm_ece334ea3fc4_switch_3
+  mode: single
+- id: '1761896697177'
+  alias: climate CS winter
+  description: ''
+  triggers:
+  - alias: morning (7:00)
+    trigger: time
+    at: 07:00:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    id: morning7
+  - trigger: time
+    at: 08:00:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    id: morning8
+    alias: morning (8:00)
+  - trigger: numeric_state
+    entity_id:
+    - sensor.cc_up_sense_temperature
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+    above: 24.5
+    id: MT-Temp High
+  - trigger: numeric_state
+    entity_id:
+    - sensor.cc_up_sense_temperature
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+    below: 22.5
+    id: MT-Temp Low
+  - alias: evening (19:00)
+    trigger: time
+    at: '18:00:00'
+    id: evening19
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id:
+        - morning7
+        - morning8
+      - condition: numeric_state
+        entity_id: weather.forecast_home
+        attribute: temperature
+        below: 20
+      sequence:
+      - action: homeassistant.turn_on
+        metadata: {}
+        data: {}
+        target:
+          entity_id:
+          - switch.shellypro4pm_ece334eaf568_switch_1
+    - conditions:
+      - condition: trigger
+        id:
+        - evening19
+      sequence:
+      - action: homeassistant.turn_off
+        metadata: {}
+        data: {}
+        target:
+          entity_id: switch.shellypro4pm_ece334eaf568_switch_1
+    - conditions:
+      - condition: trigger
+        id:
+        - MT-Temp Low
+      - condition: time
+        after: 08:00:00
+        before: '18:00:00'
+        weekday:
+        - mon
+        - tue
+        - wed
+        - thu
+        - fri
+      sequence:
+      - action: switch.turn_on
+        metadata: {}
+        data: {}
+        target:
+          entity_id:
+          - switch.shellypro4pm_ece334eaf568_switch_1
+    - conditions:
+      - condition: trigger
+        id:
+        - MT-Temp High
+      sequence:
+      - action: switch.turn_off
+        metadata: {}
+        data: {}
+        target:
+          entity_id:
+          - switch.shellypro4pm_ece334eaf568_switch_1
+  mode: single
+- id: '1761896958937'
+  alias: Climate OpenSpace winter
+  description: ''
+  triggers:
+  - alias: morning (7:00)
+    trigger: time
+    at: 07:00:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    id: morning7
+  - trigger: time
+    at: 08:00:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    id: morning8
+    alias: morning (8:00)
+  - trigger: numeric_state
+    entity_id:
+    - sensor.up_sense_temperature_3
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+    above: 24.5
+    id: MT-Temp High
+  - trigger: numeric_state
+    entity_id:
+    - switch.up_sense_temperature_sensor_3
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+    below: 22.5
+    id: MT-Temp Low
+  - alias: evening (19:00)
+    trigger: time
+    at: '18:00:00'
+    id: evening19
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id:
+        - morning7
+        - morning8
+      - condition: numeric_state
+        entity_id: weather.forecast_home
+        attribute: temperature
+        below: 20
+      sequence:
+      - action: homeassistant.turn_on
+        metadata: {}
+        data: {}
+        target:
+          entity_id: switch.shellypro4pm_ece334ea3fc4_switch_1
+    - conditions:
+      - condition: trigger
+        id:
+        - evening19
+      sequence:
+      - action: homeassistant.turn_off
+        metadata: {}
+        data: {}
+        target:
+          entity_id: switch.shellypro4pm_ece334ea3fc4_switch_1
+    - conditions:
+      - condition: trigger
+        id:
+        - MT-Temp Low
+      - condition: time
+        after: 08:00:00
+        before: '18:00:00'
+        weekday:
+        - mon
+        - tue
+        - wed
+        - thu
+        - fri
+      sequence:
+      - action: switch.turn_on
+        metadata: {}
+        data: {}
+        target:
+          entity_id: switch.shellypro4pm_ece334ea3fc4_switch_1
+    - conditions:
+      - condition: trigger
+        id:
+        - MT-Temp High
+      sequence:
+      - action: switch.turn_off
+        metadata: {}
+        data: {}
+        target:
+          entity_id: switch.shellypro4pm_ece334ea3fc4_switch_1
+  mode: single
+- id: '1762254683356'
+  alias: Climate.Workday Preset Modes
+  description: ''
+  triggers:
+  - trigger: time
+    at: 07:30:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    id: workdays 7:30
+  - trigger: time
+    at: '12:00:00'
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    - sat
+    alias: workdays & saturday lunch
+    id: lunchtime
+  - trigger: time
+    at: '15:00:00'
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    id: workdays 15:00
+  - trigger: time
+    at: '17:00:00'
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    id: workdays 17:00
+  - trigger: time
+    at: '18:00:00'
+    id: every day 18:00
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id:
+        - workdays 7:30
+      - condition: state
+        entity_id: binary_sensor.workday_sensor
+        state: 'on'
+      sequence:
+      - action: climate.set_preset_mode
+        metadata: {}
+        data:
+          preset_mode: home
+        target:
+          entity_id:
+          - climate.customer_service
+          - climate.openspace_meetingroom
+          - climate.mt
+      alias: workday 7:30
+    - conditions:
+      - condition: trigger
+        id:
+        - workdays 15:00
+      - condition: state
+        entity_id: binary_sensor.workday_sensor
+        state: 'on'
+      sequence:
+      - action: climate.set_preset_mode
+        metadata: {}
+        data:
+          preset_mode: sleep
+        target:
+          device_id:
+          - 73eed2df63bc732cc20ee65a833a5fcf
+      alias: workday 15:00
+    - conditions:
+      - condition: trigger
+        id:
+        - workdays 17:00
+      - condition: state
+        entity_id: binary_sensor.workday_sensor
+        state: 'on'
+      sequence:
+      - action: climate.set_preset_mode
+        metadata: {}
+        data:
+          preset_mode: sleep
+        target:
+          device_id:
+          - 94581bfc56b846234d46dd7aabdbc02f
+          - 73eed2df63bc732cc20ee65a833a5fcf
+      alias: workday 17:00
+    - conditions:
+      - condition: trigger
+        id:
+        - every day 18:00
+      - condition: state
+        entity_id: binary_sensor.tomorrow_workday_sensor
+        state: 'on'
+      sequence:
+      - action: climate.set_preset_mode
+        metadata: {}
+        data:
+          preset_mode: sleep
+        target:
+          entity_id:
+          - climate.customer_service
+          - climate.mt
+          - climate.openspace_meetingroom
+      alias: tomorrow workday 18:00
+    - conditions:
+      - condition: trigger
+        id:
+        - every day 18:00
+      - condition: state
+        entity_id: binary_sensor.tomorrow_workday_sensor
+        state: 'off'
+      sequence:
+      - action: climate.set_preset_mode
+        metadata: {}
+        data:
+          preset_mode: away
+        target:
+          entity_id:
+          - climate.customer_service
+          - climate.mt
+          - climate.openspace_meetingroom
+      alias: tomorrow NO workday 18:00
+    - conditions:
+      - condition: trigger
+        id:
+        - lunchtime
+      sequence:
+      - action: climate.set_preset_mode
+        metadata: {}
+        data:
+          preset_mode: Comfort
+        target:
+          entity_id: climate.meeting
+      - delay:
+          hours: 2
+          minutes: 0
+          seconds: 0
+          milliseconds: 0
+      - action: climate.set_preset_mode
+        metadata: {}
+        data:
+          preset_mode: Away
+        target:
+          entity_id: climate.meeting
+  mode: single

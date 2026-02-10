@@ -1,0 +1,35 @@
+# Secrets
+secrets.yaml
+.storage/auth*
+.storage/onboarding*
+
+# Database
+home-assistant_v2.db
+home-assistant_v2.db-shm
+home-assistant_v2.db-wal
+
+# Logs
+home-assistant.log
+
+# Runtime
+__pycache__/
+*.pyc
+.cloud/
+tts/
+.HA_VERSION
+
+# Large/managed folders
+backups/
+custom_components/
+www/
+
+# OS/Synology
+.DS_Store
+Thumbs.db
+@eaDir/
+
+# All storage (runtime/machine-specific)
+.storage/
+
+# Old log files
+home-assistant.log.*
