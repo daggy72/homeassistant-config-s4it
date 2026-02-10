@@ -19,3 +19,23 @@ http:
 automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
+
+# --- Fancoil Climate Control Helpers ---
+input_boolean:
+  heating_season:
+    name: "Heating Season"
+    icon: mdi:radiator
+
+# --- Template entities (fancoil number → Shelly 0-10V brightness) ---
+template: !include templates.yaml
+
+# --- Additional YAML Dashboard ---
+lovelace:
+  mode: storage
+  dashboards:
+    climate-control:
+      mode: yaml
+      title: Climate Control
+      icon: mdi:thermostat
+      filename: dashboards/climate.yaml
+      show_in_sidebar: true

@@ -1,0 +1,110 @@
+# Template number entities — map Versatile Thermostat valve % to Shelly 0-10V fan speed
+# VT (over_valve mode) sends 0-100% → template number → light brightness → 0-10V output
+- number:
+    - name: "Fancoil Mensa 1"
+      unique_id: fancoil_mensa_1
+      min: 0
+      max: 100
+      step: 1
+      unit_of_measurement: "%"
+      state: >
+        {% if is_state('light.shellypro0110pm_8813bfe0fc18', 'on') %}
+          {{ (state_attr('light.shellypro0110pm_8813bfe0fc18', 'brightness') | float(0) / 255 * 100) | round(0) }}
+        {% else %}
+          0
+        {% endif %}
+      set_value:
+        - if:
+            - condition: template
+              value_template: "{{ value | int > 0 }}"
+          then:
+            - action: light.turn_on
+              target:
+                entity_id: light.shellypro0110pm_8813bfe0fc18
+              data:
+                brightness_pct: "{{ value | int }}"
+          else:
+            - action: light.turn_off
+              target:
+                entity_id: light.shellypro0110pm_8813bfe0fc18
+
+    - name: "Fancoil Mensa 2"
+      unique_id: fancoil_mensa_2
+      min: 0
+      max: 100
+      step: 1
+      unit_of_measurement: "%"
+      state: >
+        {% if is_state('light.shellypro0110pm_8813bfd9525c', 'on') %}
+          {{ (state_attr('light.shellypro0110pm_8813bfd9525c', 'brightness') | float(0) / 255 * 100) | round(0) }}
+        {% else %}
+          0
+        {% endif %}
+      set_value:
+        - if:
+            - condition: template
+              value_template: "{{ value | int > 0 }}"
+          then:
+            - action: light.turn_on
+              target:
+                entity_id: light.shellypro0110pm_8813bfd9525c
+              data:
+                brightness_pct: "{{ value | int }}"
+          else:
+            - action: light.turn_off
+              target:
+                entity_id: light.shellypro0110pm_8813bfd9525c
+
+    - name: "Fancoil Projects 1"
+      unique_id: fancoil_projects_1
+      min: 0
+      max: 100
+      step: 1
+      unit_of_measurement: "%"
+      state: >
+        {% if is_state('light.shellypro0110pm_8813bfe0e42c', 'on') %}
+          {{ (state_attr('light.shellypro0110pm_8813bfe0e42c', 'brightness') | float(0) / 255 * 100) | round(0) }}
+        {% else %}
+          0
+        {% endif %}
+      set_value:
+        - if:
+            - condition: template
+              value_template: "{{ value | int > 0 }}"
+          then:
+            - action: light.turn_on
+              target:
+                entity_id: light.shellypro0110pm_8813bfe0e42c
+              data:
+                brightness_pct: "{{ value | int }}"
+          else:
+            - action: light.turn_off
+              target:
+                entity_id: light.shellypro0110pm_8813bfe0e42c
+
+    - name: "Fancoil Projects 2"
+      unique_id: fancoil_projects_2
+      min: 0
+      max: 100
+      step: 1
+      unit_of_measurement: "%"
+      state: >
+        {% if is_state('light.shellypro0110pm_8813bfd95330', 'on') %}
+          {{ (state_attr('light.shellypro0110pm_8813bfd95330', 'brightness') | float(0) / 255 * 100) | round(0) }}
+        {% else %}
+          0
+        {% endif %}
+      set_value:
+        - if:
+            - condition: template
+              value_template: "{{ value | int > 0 }}"
+          then:
+            - action: light.turn_on
+              target:
+                entity_id: light.shellypro0110pm_8813bfd95330
+              data:
+                brightness_pct: "{{ value | int }}"
+          else:
+            - action: light.turn_off
+              target:
+                entity_id: light.shellypro0110pm_8813bfd95330

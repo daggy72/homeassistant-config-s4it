@@ -1,0 +1,87 @@
+# =============================================================================
+# Climate Control Dashboard
+# =============================================================================
+# NOTE: climate.office_climate is a placeholder — replace with the actual
+#       Versatile Thermostat entity ID after configuring it in the UI.
+# =============================================================================
+
+views:
+  - title: Climate Control
+    path: climate
+    icon: mdi:thermostat
+    cards:
+
+      # --- Main Thermostat ---
+      - type: thermostat
+        entity: climate.office_climate
+        name: Office Climate
+
+      # --- System Status ---
+      - type: entities
+        title: System
+        entities:
+          - entity: input_boolean.heating_season
+            name: Heating Season
+          - entity: climate.office_climate
+            name: Thermostat Mode
+
+      # --- Quick Preset Buttons ---
+      - type: horizontal-stack
+        cards:
+          - type: button
+            name: Comfort
+            icon: mdi:sofa
+            tap_action:
+              action: call-service
+              service: climate.set_preset_mode
+              service_data:
+                preset_mode: comfort
+              target:
+                entity_id: climate.office_climate
+          - type: button
+            name: Eco
+            icon: mdi:leaf
+            tap_action:
+              action: call-service
+              service: climate.set_preset_mode
+              service_data:
+                preset_mode: eco
+              target:
+                entity_id: climate.office_climate
+          - type: button
+            name: Boost
+            icon: mdi:fire
+            tap_action:
+              action: call-service
+              service: climate.set_preset_mode
+              service_data:
+                preset_mode: boost
+              target:
+                entity_id: climate.office_climate
+          - type: button
+            name: Frost
+            icon: mdi:snowflake
+            tap_action:
+              action: call-service
+              service: climate.set_preset_mode
+              service_data:
+                preset_mode: frost
+              target:
+                entity_id: climate.office_climate
+
+      # --- Individual Fancoil Status (light entities = valve + fan speed) ---
+      - type: entities
+        title: Fancoil Units
+        entities:
+          - entity: light.shellypro0110pm_8813bfe0fc18
+            name: "Fancoil Mensa 1"
+            secondary_info: brightness
+          - entity: light.shellypro0110pm_8813bfd9525c
+            name: "Fancoil Mensa 2"
+            secondary_info: brightness
+          - entity: light.shellypro0110pm_8813bfe0e42c
+            name: "Fancoil Projects 1"
+            secondary_info: brightness
+          - entity: light.shellypro0110pm_8813bfd95330
+            name: "Fancoil Projects 2"
+            secondary_info: brightness

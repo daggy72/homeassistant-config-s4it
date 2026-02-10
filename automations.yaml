@@ -585,3 +585,171 @@
         target:
           entity_id: climate.meeting
   mode: single
+
+# =============================================================================
+# FANCOIL CLIMATE CONTROL (Versatile Thermostat)
+# =============================================================================
+# PLACEHOLDER ENTITY IDs — replace after Versatile Thermostat is configured:
+#   climate.office_climate        → the VT entity created in the UI
+#   light.shelly_fancoil_1..4     → the actual Shelly Pro Dimmer light entities
+#   sensor.room_temperature       → the actual room thermometer sensor
+# =============================================================================
+
+- id: '1770681600001'
+  alias: Fancoil Seasonal Mode Toggle
+  description: >-
+    Switch Versatile Thermostat between heat and cool mode
+    based on the heating_season toggle.
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.heating_season
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.heating_season
+        state: 'on'
+      sequence:
+      - action: climate.set_hvac_mode
+        target:
+          entity_id: climate.office_climate
+        data:
+          hvac_mode: heat
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.heating_season
+        state: 'off'
+      sequence:
+      - action: climate.set_hvac_mode
+        target:
+          entity_id: climate.office_climate
+        data:
+          hvac_mode: cool
+  mode: single
+
+- id: '1770681600002'
+  alias: Fancoil Weekday Schedule
+  description: >-
+    Mon-Fri comfort/eco schedule with nightly frost protection (daily).
+  triggers:
+  - trigger: time
+    at: '06:30:00'
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    id: morning_comfort
+    alias: morning comfort (06:30)
+  - trigger: time
+    at: '12:30:00'
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    id: lunch_eco
+    alias: lunch eco (12:30)
+  - trigger: time
+    at: '13:30:00'
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    id: afternoon_comfort
+    alias: afternoon comfort (13:30)
+  - trigger: time
+    at: '18:00:00'
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    id: evening_eco
+    alias: evening eco (18:00)
+  - trigger: time
+    at: '22:00:00'
+    id: night_frost
+    alias: nightly frost protection (22:00)
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: morning_comfort
+      sequence:
+      - action: climate.set_preset_mode
+        target:
+          entity_id: climate.office_climate
+        data:
+          preset_mode: comfort
+    - conditions:
+      - condition: trigger
+        id: lunch_eco
+      sequence:
+      - action: climate.set_preset_mode
+        target:
+          entity_id: climate.office_climate
+        data:
+          preset_mode: eco
+    - conditions:
+      - condition: trigger
+        id: afternoon_comfort
+      sequence:
+      - action: climate.set_preset_mode
+        target:
+          entity_id: climate.office_climate
+        data:
+          preset_mode: comfort
+    - conditions:
+      - condition: trigger
+        id: evening_eco
+      sequence:
+      - action: climate.set_preset_mode
+        target:
+          entity_id: climate.office_climate
+        data:
+          preset_mode: eco
+    - conditions:
+      - condition: trigger
+        id: night_frost
+      sequence:
+      - action: climate.set_preset_mode
+        target:
+          entity_id: climate.office_climate
+        data:
+          preset_mode: frost
+  mode: single
+
+- id: '1770681600003'
+  alias: Fancoil Weekend Schedule
+  description: >-
+    Sat-Sun light background eco mode during the day.
+    Nightly frost protection handled by the weekday automation (daily trigger).
+  triggers:
+  - trigger: time
+    at: '08:00:00'
+    weekday:
+    - sat
+    - sun
+    id: weekend_eco
+    alias: weekend eco (08:00)
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: weekend_eco
+      sequence:
+      - action: climate.set_preset_mode
+        target:
+          entity_id: climate.office_climate
+        data:
+          preset_mode: eco
+  mode: single
