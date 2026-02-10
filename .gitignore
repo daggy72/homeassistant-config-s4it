@@ -33,3 +33,13 @@ Thumbs.db
 
 # Old log files
 home-assistant.log.*
+
+# IDE
+*.code-workspace
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.dev
+.env.prod
