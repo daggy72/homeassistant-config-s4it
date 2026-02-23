@@ -13,19 +13,6 @@ This project extends:
 - `@~/.claude/CLAUDE.md` (global Claude Code config)
 - `@~/DevProjects/CLAUDE.md` (workspace config)
 
-## Archon Integration
-
-**Project ID**: `35b3bbdc-7f75-4fd3-b58c-a310c544ab08`
-
-### Before Starting Work
-```bash
-# 1. Get project context
-find_projects(project_id="35b3bbdc-7f75-4fd3-b58c-a310c544ab08")
-
-# 2. Search knowledge base for HA patterns
-rag_search_knowledge_base(query="home assistant automation", match_count=5)
-```
-
 ## Project Structure
 
 ```
