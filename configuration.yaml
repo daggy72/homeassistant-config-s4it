@@ -14,7 +14,8 @@ http:
   use_x_forwarded_for: true
   trusted_proxies:
    - 10.0.10.10      # IP address of the proxy server
-   - 127.0.0.1      # localhost (proxy and HA run on smae host)
+   - 127.0.0.1      # localhost (proxy and HA run on same host)
+   - 172.16.0.0/12   # Docker bridge networks (Cloudflare Tunnel)
    
 automation: !include automations.yaml
 script: !include scripts.yaml
