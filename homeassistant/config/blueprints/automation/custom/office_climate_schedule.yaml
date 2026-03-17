@@ -1,0 +1,171 @@
+blueprint:
+  name: Office Climate Schedule
+  description: >
+    Schedule climate presets based on workday sensor. 
+    On workdays: Comfort during work hours, Eco in the evening, Frost overnight.
+    On non-workdays (weekends + public holidays): Frost all day.
+    Optionally pre-heat before work starts.
+  domain: automation
+  author: Dagmar @ Salesupply Italy
+  input:
+    thermostats:
+      name: Thermostats
+      description: Select all climate entities to control
+      selector:
+        entity:
+          domain: climate
+          multiple: true
+
+    workday_sensor:
+      name: Workday Sensor
+      description: Binary sensor that detects workdays (accounts for public holidays)
+      default: binary_sensor.workday_sensor
+      selector:
+        entity:
+          domain: binary_sensor
+
+    comfort_time:
+      name: Comfort Start Time
+      description: When to switch to Comfort preset on workdays
+      default: "08:00:00"
+      selector:
+        time:
+
+    eco_time:
+      name: Eco Start Time
+      description: When to switch to Eco preset on workdays
+      default: "17:00:00"
+      selector:
+        time:
+
+    frost_time:
+      name: Frost Start Time
+      description: When to switch to Frost preset (every day)
+      default: "19:00:00"
+      selector:
+        time:
+
+    enable_preheat:
+      name: Enable Pre-heating
+      description: Start heating before comfort time so rooms are warm on arrival
+      default: false
+      selector:
+        boolean:
+
+    preheat_time:
+      name: Pre-heat Start Time
+      description: When to start pre-heating (only used if pre-heating is enabled)
+      default: "07:30:00"
+      selector:
+        time:
+
+    comfort_preset:
+      name: Comfort Preset Name
+      description: Preset to use during work hours
+      default: comfort
+      selector:
+        text:
+
+    eco_preset:
+      name: Eco Preset Name
+      description: Preset to use during evening transition
+      default: eco
+      selector:
+        text:
+
+    frost_preset:
+      name: Frost Preset Name
+      description: Preset to use overnight and on non-workdays
+      default: frost
+      selector:
+        text:
+
+triggers:
+  - trigger: time
+    at: !input comfort_time
+    id: comfort
+  - trigger: time
+    at: !input eco_time
+    id: eco
+  - trigger: time
+    at: !input frost_time
+    id: frost
+  - trigger: time
+    at: "00:00:00"
+    id: midnight
+  - trigger: time
+    at: !input preheat_time
+    id: preheat
+
+actions:
+  - choose:
+      # --- WORKDAY: Comfort ---
+      - conditions:
+          - condition: trigger
+            id: comfort
+          - condition: state
+            entity_id: !input workday_sensor
+            state: "on"
+        sequence:
+          - action: climate.set_preset_mode
+            target:
+              entity_id: !input thermostats
+            data:
+              preset_mode: !input comfort_preset
+
+      # --- WORKDAY: Eco ---
+      - conditions:
+          - condition: trigger
+            id: eco
+          - condition: state
+            entity_id: !input workday_sensor
+            state: "on"
+        sequence:
+          - action: climate.set_preset_mode
+            target:
+              entity_id: !input thermostats
+            data:
+              preset_mode: !input eco_preset
+
+      # --- EVERY DAY: Frost ---
+      - conditions:
+          - condition: trigger
+            id: frost
+        sequence:
+          - action: climate.set_preset_mode
+            target:
+              entity_id: !input thermostats
+            data:
+              preset_mode: !input frost_preset
+
+      # --- MIDNIGHT: Non-workday frost ---
+      - conditions:
+          - condition: trigger
+            id: midnight
+          - condition: state
+            entity_id: !input workday_sensor
+            state: "off"
+        sequence:
+          - action: climate.set_preset_mode
+            target:
+              entity_id: !input thermostats
+            data:
+              preset_mode: !input frost_preset
+
+      # --- PRE-HEAT (optional) ---
+      - conditions:
+          - condition: trigger
+            id: preheat
+          - condition: state
+            entity_id: !input workday_sensor
+            state: "on"
+          - "{{ enable_preheat }}"
+        sequence:
+          - action: climate.set_preset_mode
+            target:
+              entity_id: !input thermostats
+            data:
+              preset_mode: !input comfort_preset
+
+variables:
+  enable_preheat: !input enable_preheat

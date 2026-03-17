@@ -1,0 +1,45 @@
+services:
+  homeassistant:
+    container_name: HA_homeassistant
+    image: "ghcr.io/home-assistant/home-assistant:stable"
+    volumes:
+      - ${DOCKER_BASE:-/volume1/docker/homeassistant}/homeassistant/config:/config
+      - /usr/syno/etc/certificate/system/default:/ssl:ro
+      - ${BACKUP_PATH:-/volume1/backup/homeassistant}:/backup
+      - ${DOCKER_BASE:-/volume1/docker/homeassistant}/homeassistant/data:/data
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+
+  matter-server:
+    image: ghcr.io/home-assistant-libs/python-matter-server:stable
+    container_name: HA_matter-server
+    restart: unless-stopped
+    network_mode: host
+    privileged: true
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      - ${DOCKER_BASE:-/volume1/docker/homeassistant}/homeassistant/matter-data:/data
+      - /run/dbus:/run/dbus:ro
+      - /etc/localtime:/etc/localtime:ro
+    # map BLE only if you really need it:
+    # devices:
+    #   - /dev/hci0:/dev/hci0
+    command: >
+      --storage-path /data
+      --paa-root-cert-dir /data/credentials
+      --primary-interface eth1
+      --bluetooth-adapter 0
+
+  esphome:
+    container_name: HA_esphome
+    image: ghcr.io/esphome/esphome:stable
+    volumes:
+      - ${DOCKER_BASE:-/volume1/docker/homeassistant}/esphome/config:/config
+      - ${DOCKER_BASE:-/volume1/docker/homeassistant}/esphome/data:/data
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    network_mode: host

@@ -1,2 +1,43 @@
 # Agent OS Standards Index
+# Home Assistant Config - S4IT
 
+standards:
+  - id: yaml-config
+    description: HA YAML configuration conventions
+    patterns:
+      - Use `!include` to split large configs (automations, templates, scripts, scenes)
+      - Use `!include_dir_merge_named` for directory-based includes (themes)
+      - Keep `configuration.yaml` as an entrypoint that delegates to includes
+      - 2 spaces indentation for all YAML files
+
+  - id: blueprint-pattern
+    description: Reusable automation blueprints for repeated patterns
+    patterns:
+      - Place custom blueprints in `blueprints/automation/custom/`
+      - Use blueprints when 3+ automations share the same logic with different parameters
+      - Blueprint inputs use HA selectors for UI-friendly configuration
+      - Blueprint instances go in `automations.yaml` with `use_blueprint` key
+
+  - id: climate-architecture
+    description: Fancoil climate control via Versatile Thermostat
+    patterns:
+      - VT in valve mode outputs 0-100% → template number → Shelly 0-10V brightness
+      - Template numbers in `templates.yaml` bridge VT and Shelly hardware
+      - Seasonal toggle via `input_boolean.heating_season` switches heat/cool
+      - Workday sensor (`binary_sensor.workday_sensor`) gates comfort schedules
+
+  - id: entity-naming
+    description: Entity naming conventions
+    patterns:
+      - Climate entities use zone name: `climate.{zone}_climate`
+      - Fancoil templates use descriptive names: `Fancoil {Zone} {Number}`
+      - Automations use descriptive aliases in YAML
+
+  - id: git-workflow
+    description: Version control practices
+    patterns:
+      - secrets.yaml NEVER committed
+      - custom_components/ excluded (HACS-managed)
+      - .storage/ excluded (runtime state)
+      - Database and log files excluded
+      - Deployment is manual pull on Synology NAS

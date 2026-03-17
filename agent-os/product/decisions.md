@@ -47,3 +47,50 @@ Use Shelly Pro 4PM relays to control HVAC per zone, with UP Sense temperature se
 ### Consequences
 - Each zone needs its own automation (some duplication)
 - Temperature thresholds may need seasonal tuning
+
+---
+
+## DEC-003: Versatile Thermostat with Blueprint-based Scheduling
+
+**Date**: 2026-03
+**Status**: Decided
+
+### Context
+Managing per-zone climate automations individually led to duplication and was hard to maintain. Fancoils require 0-10V control which HA doesn't natively support through climate entities.
+
+### Decision
+Use Versatile Thermostat (HACS) in valve mode, with template number entities that map valve percentage to Shelly Pro 0-10V PM brightness. Schedule presets via a reusable custom blueprint (`office_climate_schedule.yaml`).
+
+### Rationale
+- VT's valve mode outputs 0-100% which maps cleanly to Shelly 0-10V via light brightness
+- Blueprint pattern: define schedule logic once, instantiate per zone with different parameters
+- Workday sensor integration handles weekends + public holidays automatically
+- Pre-heat option avoids cold-start mornings
+
+### Consequences
+- Fancoil entities appear as "light" devices in HA (brightness = fan speed)
+- Template numbers add a layer of indirection between VT and Shelly
+- Blueprint changes propagate to all zones (feature, not bug)
+
+---
+
+## DEC-004: Host Network Mode for HA and Matter
+
+**Date**: 2026-02
+**Status**: Decided
+
+### Context
+Home Assistant and Matter Server need access to local network for device discovery (mDNS, Thread, BLE).
+
+### Decision
+Run both containers with `network_mode: host` and `privileged: true`.
+
+### Rationale
+- mDNS/SSDP discovery requires host networking
+- Matter protocol needs direct network access for commissioning
+- D-Bus access required for Bluetooth/Thread
+
+### Consequences
+- Containers share host network stack (port conflicts possible)
+- Privileged mode reduces container isolation
+- Security trade-off accepted for device compatibility

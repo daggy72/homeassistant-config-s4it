@@ -1,43 +1,63 @@
+# ===========================
+# Home Assistant
+# ===========================
+
 # Secrets
-secrets.yaml
-.storage/auth*
-.storage/onboarding*
+homeassistant/config/secrets.yaml
 
 # Database
-home-assistant_v2.db
-home-assistant_v2.db-shm
-home-assistant_v2.db-wal
+homeassistant/config/home-assistant_v2.db
+homeassistant/config/home-assistant_v2.db-shm
+homeassistant/config/home-assistant_v2.db-wal
 
 # Logs
-home-assistant.log
+homeassistant/config/home-assistant.log
+homeassistant/config/home-assistant.log.*
 
 # Runtime
-__pycache__/
-*.pyc
-.cloud/
-tts/
-.HA_VERSION
+homeassistant/config/__pycache__/
+homeassistant/config/.cloud/
+homeassistant/config/tts/
+homeassistant/config/.HA_VERSION
+homeassistant/config/.ha_run.lock
+
+# Storage (runtime/machine-specific)
+homeassistant/config/.storage/
 
 # Large/managed folders
-backups/
-custom_components/
-www/
+homeassistant/config/backups/
+homeassistant/config/custom_components/
+homeassistant/config/www/
+homeassistant/config/deps/
 
-# OS/Synology
+# Runtime data (not config)
+homeassistant/data/
+homeassistant/matter-data/
+
+# ===========================
+# ESPHome
+# ===========================
+esphome/config/secrets.yaml
+esphome/config/.esphome/
+esphome/data/
+
+# ===========================
+# General
+# ===========================
+
+# OS
 .DS_Store
 Thumbs.db
 @eaDir/
-
-# All storage (runtime/machine-specific)
-.storage/
-
-# Old log files
-home-assistant.log.*
 
 # IDE
 *.code-workspace
 .vscode/
 .idea/
+
+# Python
+__pycache__/
+*.pyc
 
 # Environment
 .env

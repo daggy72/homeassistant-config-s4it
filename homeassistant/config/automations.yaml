@@ -1,0 +1,156 @@
+- id: '1756302982626'
+  alias: 'Turn ON/OFF kitchen appliances '
+  description: ''
+  triggers:
+  - trigger: time
+    at: 08:00:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    - sat
+    alias: morning
+    id: morning
+  - trigger: time
+    at: '19:00:00'
+    alias: evening
+    id: evening
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id:
+        - morning
+      sequence:
+      - action: homeassistant.turn_on
+        target:
+          device_id:
+          - 38fb9befcf779e1440cd0ddfc6251b11
+          - b84eccfdd08a303ccb0f277d25676c3a
+        data: {}
+    - conditions:
+      - condition: trigger
+        id:
+        - evening
+      sequence:
+      - action: homeassistant.turn_off
+        target:
+          device_id:
+          - 38fb9befcf779e1440cd0ddfc6251b11
+          - b84eccfdd08a303ccb0f277d25676c3a
+        data: {}
+  mode: single
+- id: '1758196497361'
+  alias: 'Auto Unlock Wallbox '
+  description: ''
+  triggers:
+  - trigger: zone
+    entity_id: device_tracker.daggys_iphone
+    zone: zone.home
+    event: enter
+  conditions: []
+  actions:
+  - device_id: 7dea3fde1d0c4a81409d4902e41d26ad
+    domain: lock
+    entity_id: ff10635796ac846572b991c00c0e076b
+    type: unlock
+  - delay:
+      hours: 0
+      minutes: 5
+      seconds: 0
+      milliseconds: 0
+  mode: single
+- id: '1770681600001'
+  alias: Fancoil Seasonal Mode Toggle
+  description: Switch Versatile Thermostat between heat and cool mode based on the
+    heating_season toggle.
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.heating_season
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.heating_season
+        state: 'on'
+      sequence:
+      - action: climate.set_hvac_mode
+        target:
+          entity_id: climate.office_climate
+        data:
+          hvac_mode: heat
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.heating_season
+        state: 'off'
+      sequence:
+      - action: climate.set_hvac_mode
+        target:
+          entity_id: climate.office_climate
+        data:
+          hvac_mode: cool
+  mode: single
+- id: '1772010003105'
+  alias: Office Climate Schedule
+  description: ''
+  use_blueprint:
+    path: custom/office_climate_schedule.yaml
+    input:
+      thermostats:
+      - climate.mt_climate
+      - climate.projects_1
+      enable_preheat: true
+      comfort_preset: comfort
+      eco_preset: eco
+      frost_preset: frost
+      frost_time: '19:00:00'
+      eco_time: '17:00:00'
+- id: '1772011171344'
+  alias: CS Climate Schedule
+  description: ''
+  use_blueprint:
+    path: custom/office_climate_schedule.yaml
+    input:
+      thermostats:
+      - climate.cs_climate
+      frost_time: '18:00:00'
+      eco_time: '16:00:00'
+      enable_preheat: true
+- id: '1772012168362'
+  alias: Meeting Room Climate Schedule
+  description: ''
+  use_blueprint:
+    path: custom/office_climate_schedule.yaml
+    input:
+      thermostats:
+      - climate.meeting_room_climate
+      comfort_time: '12:00:00'
+      eco_time: 08:00:00
+      frost_time: '16:00:00'
+- id: '1772012224536'
+  alias: Open Space Climate Schedule
+  description: ''
+  use_blueprint:
+    path: custom/office_climate_schedule.yaml
+    input:
+      thermostats:
+      - climate.open_space_climate
+      - climate.mensa_climate
+      eco_time: '16:00:00'
+      frost_time: '18:00:00'
+      enable_preheat: true
+- id: '1772457821295'
+  alias: Mensa Climate Schedule
+  description: ''
+  use_blueprint:
+    path: custom/office_climate_schedule.yaml
+    input:
+      thermostats:
+      - climate.mensa_climate
+      comfort_time: 09:00:00
+      eco_time: '15:00:00'
+      frost_time: '18:00:00'
