@@ -78,7 +78,7 @@ Two generations of fancoil hardware coexist, both driven by Versatile Thermostat
 
 **Old fancoils (3-speed)**: VT on_percent → HA automation → ESP32 Athom 4CH relay board → 3-speed relay (Low/Med/High) + valve relay. The `Fancoil Speed Control` automation in `automations.yaml` handles cascaded 6-speed mapping for dual-room zones and 3-speed for single-room zones.
 
-**Seasonal toggle**: `input_boolean.heating_season` switches VT between heat/cool HVAC modes.
+**Seasonal mode**: `input_select.climate_season` (winter/off/summer) switches all VTs between heat/cool/off and controls the chiller. Summer comfort temps are dynamic based on outdoor temperature (24-27°C offices, 25-28°C common).
 
 #### New Fancoil Entities (templates.yaml — Shelly 0-10V)
 
@@ -121,7 +121,8 @@ Two generations of fancoil hardware coexist, both driven by Versatile Thermostat
 |------------|---------|-------------|
 | Kitchen Appliances | Time: 8:00 on / 19:00 off (Mon-Sat) | Smart plugs for kitchen devices |
 | Auto Unlock Wallbox | Zone: enter home (geofence) | Unlock EV charger when Dagmar arrives |
-| Fancoil Seasonal Mode Toggle | State: `input_boolean.heating_season` | Switches VT between heat/cool mode |
+| Seasonal Climate Mode Switch | State: `input_select.climate_season` | Switches all VTs heat/cool/off + chiller control |
+| Summer Dynamic Temp Adjust | Time: every 30min (summer only) | Adjusts cooling targets based on outdoor temp |
 | Fancoil Speed Control | State: VT `on_percent` attribute | Maps VT demand to ESP32 fan speed (old fancoils) |
 
 #### Blueprint-based Automations (office_climate_schedule.yaml)

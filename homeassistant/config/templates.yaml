@@ -414,3 +414,49 @@
             - action: fan.turn_off
               target:
                 entity_id: fan.fancoil_03_fancoil
+
+# --- Dynamic summer cooling setpoint sensors ---
+# Calculates ideal comfort cooling temperature based on outdoor temp.
+# Avoids cold shock: scales from 24°C (outdoor 25°C) to 27°C (outdoor 33°C+).
+- sensor:
+    - name: "Summer Comfort Office"
+      unique_id: summer_comfort_office
+      state: >
+        {% set outdoor = states('sensor.outdoor_temperature') | float(25) %}
+        {% set target = 24 + (outdoor - 25) / 3 %}
+        {{ [24, [target, 27] | min] | max | round(1) }}
+      unit_of_measurement: "°C"
+      icon: mdi:thermometer-chevron-down
+      device_class: temperature
+      state_class: measurement
+
+    - name: "Summer Comfort Common"
+      unique_id: summer_comfort_common
+      state: >
+        {% set outdoor = states('sensor.outdoor_temperature') | float(25) %}
+        {% set target = 25 + (outdoor - 25) / 3 %}
+        {{ [25, [target, 28] | min] | max | round(1) }}
+      unit_of_measurement: "°C"
+      icon: mdi:thermometer-chevron-down
+      device_class: temperature
+      state_class: measurement
+
+    - name: "Summer Eco Office"
+      unique_id: summer_eco_office
+      state: >
+        {% set comfort = states('sensor.summer_comfort_office') | float(24) %}
+        {{ (comfort + 3) | round(1) }}
+      unit_of_measurement: "°C"
+      icon: mdi:thermometer-chevron-down
+      device_class: temperature
+      state_class: measurement
+
+    - name: "Summer Eco Common"
+      unique_id: summer_eco_common
+      state: >
+        {% set comfort = states('sensor.summer_comfort_common') | float(25) %}
+        {{ (comfort + 3) | round(1) }}
+      unit_of_measurement: "°C"
+      icon: mdi:thermometer-chevron-down
+      device_class: temperature
+      state_class: measurement

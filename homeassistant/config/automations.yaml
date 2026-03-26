@@ -64,35 +64,115 @@
       milliseconds: 0
   mode: single
 - id: '1770681600001'
-  alias: Fancoil Seasonal Mode Toggle
-  description: Switch Versatile Thermostat between heat and cool mode based on the
-    heating_season toggle.
+  alias: Seasonal Climate Mode Switch
+  description: >
+    Switch all VT fancoil entities between heat/cool/off based on
+    the climate_season selector. Controls chiller. Safe transition
+    (off → wait → new mode) prevents mode conflicts.
   triggers:
   - trigger: state
-    entity_id: input_boolean.heating_season
+    entity_id: input_select.climate_season
   conditions: []
   actions:
+  - variables:
+      all_thermostats:
+      - climate.fancoil_dagmar
+      - climate.fancoil_tania
+      - climate.projects_1
+      - climate.fancoil_cs
+      - climate.fancoil_reception
+      - climate.fancoil_meeting
+      - climate.fancoil_openspace
+      - climate.fancoil_entrance
+      - climate.climate_mensa
+      new_season: "{{ states('input_select.climate_season') }}"
+  - action: climate.set_hvac_mode
+    target:
+      entity_id: "{{ all_thermostats }}"
+    data:
+      hvac_mode: "off"
+  - action: switch.turn_off
+    target:
+      entity_id: switch.chiller
+  - delay:
+      seconds: 5
   - choose:
     - conditions:
-      - condition: state
-        entity_id: input_boolean.heating_season
-        state: 'on'
+      - condition: template
+        value_template: "{{ new_season == 'winter' }}"
       sequence:
       - action: climate.set_hvac_mode
         target:
-          entity_id: climate.office_climate
+          entity_id: "{{ all_thermostats }}"
         data:
           hvac_mode: heat
     - conditions:
-      - condition: state
-        entity_id: input_boolean.heating_season
-        state: 'off'
+      - condition: template
+        value_template: "{{ new_season == 'summer' }}"
       sequence:
+      - action: switch.turn_on
+        target:
+          entity_id: switch.chiller
+      - delay:
+          seconds: 2
       - action: climate.set_hvac_mode
         target:
-          entity_id: climate.office_climate
+          entity_id: "{{ all_thermostats }}"
         data:
           hvac_mode: cool
+  mode: single
+- id: summer_dynamic_temp_adjust
+  alias: Summer Dynamic Temperature Adjustment
+  description: >
+    Every 30 minutes in summer mode, adjusts cooling target temperatures
+    based on outdoor temperature. Prevents cold shock by scaling comfort
+    from 24°C (mild) to 27°C (hot outdoor).
+  triggers:
+  - trigger: time_pattern
+    minutes: '/30'
+  conditions:
+  - condition: state
+    entity_id: input_select.climate_season
+    state: summer
+  actions:
+  - variables:
+      office_comfort: "{{ states('sensor.summer_comfort_office') | float(25) }}"
+      common_comfort: "{{ states('sensor.summer_comfort_common') | float(26) }}"
+      office_eco: "{{ states('sensor.summer_eco_office') | float(28) }}"
+      common_eco: "{{ states('sensor.summer_eco_common') | float(29) }}"
+      office_zones:
+      - climate.fancoil_dagmar
+      - climate.fancoil_tania
+      - climate.projects_1
+      - climate.fancoil_cs
+      - climate.fancoil_reception
+      common_zones:
+      - climate.fancoil_meeting
+      - climate.fancoil_openspace
+      - climate.fancoil_entrance
+      - climate.climate_mensa
+  - repeat:
+      for_each: "{{ office_zones }}"
+      sequence:
+      - condition: template
+        value_template: >
+          {{ state_attr(repeat.item, 'preset_mode') == 'comfort' }}
+      - action: climate.set_temperature
+        target:
+          entity_id: "{{ repeat.item }}"
+        data:
+          temperature: "{{ office_comfort }}"
+  - repeat:
+      for_each: "{{ common_zones }}"
+      sequence:
+      - condition: template
+        value_template: >
+          {{ state_attr(repeat.item, 'preset_mode') == 'comfort' }}
+      - action: climate.set_temperature
+        target:
+          entity_id: "{{ repeat.item }}"
+        data:
+          temperature: "{{ common_comfort }}"
   mode: single
 - id: office_climate_schedule
   alias: Office Climate Schedule

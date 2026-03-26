@@ -97,6 +97,13 @@ triggers:
     at: !input preheat_time
     id: preheat
 
+conditions:
+  - condition: not
+    conditions:
+      - condition: state
+        entity_id: input_select.climate_season
+        state: "off"
+
 actions:
   - choose:
       # --- WORKDAY: Comfort ---
