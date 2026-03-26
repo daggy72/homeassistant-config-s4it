@@ -1,0 +1,11 @@
+substitutions:
+  name: "fancoil-03"
+  friendly_name: "Fancoil 03"
+  room: "Entrance"
+
+packages:
+  base:
+    url: https://github.com/daggy72/esphome-fancoil
+    ref: main
+    file: fancoil-base.yaml
+    refresh: 0s

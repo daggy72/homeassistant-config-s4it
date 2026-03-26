@@ -94,63 +94,251 @@
         data:
           hvac_mode: cool
   mode: single
-- id: '1772010003105'
+- id: office_climate_schedule
   alias: Office Climate Schedule
-  description: ''
+  description: >
+    Offices (Dagmar, Tania, Projects, CS, Reception): comfort 22°C
+    during work hours, eco 18°C evening, frost 15°C overnight.
+    Workdays only. Pre-heat at 07:30.
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
       thermostats:
-      - climate.mt_climate
+      - climate.fancoil_dagmar
+      - climate.fancoil_tania
       - climate.projects_1
+      - climate.fancoil_cs
+      - climate.fancoil_reception
+      comfort_time: '08:00:00'
+      eco_time: '17:00:00'
+      frost_time: '19:00:00'
       enable_preheat: true
+      preheat_time: '07:30:00'
       comfort_preset: comfort
       eco_preset: eco
       frost_preset: frost
-      frost_time: '19:00:00'
+- id: common_climate_schedule
+  alias: Common Spaces Climate Schedule
+  description: >
+    Common areas (OpenSpace, Entrance, Mensa): comfort 20°C during
+    work hours, eco 17°C evening, frost 15°C overnight.
+    Workdays only. Pre-heat at 07:30.
+  use_blueprint:
+    path: custom/office_climate_schedule.yaml
+    input:
+      thermostats:
+      - climate.fancoil_openspace
+      - climate.fancoil_entrance
+      - climate.climate_mensa
+      comfort_time: '08:00:00'
       eco_time: '17:00:00'
-- id: '1772011171344'
-  alias: CS Climate Schedule
-  description: ''
-  use_blueprint:
-    path: custom/office_climate_schedule.yaml
-    input:
-      thermostats:
-      - climate.cs_climate
-      frost_time: '18:00:00'
-      eco_time: '16:00:00'
+      frost_time: '19:00:00'
       enable_preheat: true
-- id: '1772012168362'
+      preheat_time: '07:30:00'
+      comfort_preset: comfort
+      eco_preset: eco
+      frost_preset: frost
+- id: meeting_climate_schedule
   alias: Meeting Room Climate Schedule
-  description: ''
+  description: >
+    Meeting Room: comfort 20°C work hours, eco 17°C evening,
+    frost 15°C overnight. Workdays only.
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
       thermostats:
-      - climate.meeting_room_climate
-      comfort_time: '12:00:00'
-      eco_time: 08:00:00
-      frost_time: '16:00:00'
-- id: '1772012224536'
-  alias: Open Space Climate Schedule
-  description: ''
-  use_blueprint:
-    path: custom/office_climate_schedule.yaml
-    input:
-      thermostats:
-      - climate.open_space_climate
-      - climate.mensa_climate
-      eco_time: '16:00:00'
-      frost_time: '18:00:00'
-      enable_preheat: true
-- id: '1772457821295'
-  alias: Mensa Climate Schedule
-  description: ''
-  use_blueprint:
-    path: custom/office_climate_schedule.yaml
-    input:
-      thermostats:
-      - climate.mensa_climate
-      comfort_time: 09:00:00
-      eco_time: '15:00:00'
-      frost_time: '18:00:00'
+      - climate.fancoil_meeting
+      comfort_time: '08:00:00'
+      eco_time: '17:00:00'
+      frost_time: '19:00:00'
+      comfort_preset: comfort
+      eco_preset: eco
+      frost_preset: frost
+- id: meeting_room_boost
+  alias: Meeting Room Boost (12-14)
+  description: >
+    Boost meeting room to 22°C between 12:00-14:00 on workdays,
+    then return to comfort preset.
+  triggers:
+  - trigger: time
+    at: '12:00:00'
+    id: boost_start
+  - trigger: time
+    at: '14:00:00'
+    id: boost_end
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.workday_sensor
+    state: 'on'
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: boost_start
+      sequence:
+      - action: climate.set_preset_mode
+        target:
+          entity_id: climate.fancoil_meeting
+        data:
+          preset_mode: boost
+    - conditions:
+      - condition: trigger
+        id: boost_end
+      sequence:
+      - action: climate.set_preset_mode
+        target:
+          entity_id: climate.fancoil_meeting
+        data:
+          preset_mode: comfort
+  mode: single
+- id: cs_sun_shade
+  alias: CS Sun Shade (Morning)
+  description: >
+    Lower CS shade to 30% when sunny during the ESE sun window (08:00-11:00).
+    Triggers at 08:00 and also when clouds clear during the window.
+    Raises at 11:00 when sun moves past, or if clouds roll in.
+  mode: single
+  triggers:
+  - trigger: time
+    at: '08:00:00'
+    id: sun_check
+  - trigger: numeric_state
+    entity_id: weather.forecast_home
+    attribute: cloud_coverage
+    below: 50
+    id: sun_check
+  - trigger: time
+    at: '11:00:00'
+    id: sun_past
+  - trigger: numeric_state
+    entity_id: weather.forecast_home
+    attribute: cloud_coverage
+    above: 70
+    id: cloudy
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.workday_sensor
+    state: 'on'
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: sun_check
+      - condition: time
+        after: '08:00:00'
+        before: '11:00:00'
+      - condition: numeric_state
+        entity_id: weather.forecast_home
+        attribute: cloud_coverage
+        below: 50
+      - condition: state
+        entity_id: sun.sun
+        state: above_horizon
+      - condition: numeric_state
+        entity_id: cover.shellypro2cover_34987a47c9b0_cover_1
+        attribute: current_position
+        above: 50
+      sequence:
+      - action: cover.set_cover_position
+        target:
+          entity_id: cover.shellypro2cover_34987a47c9b0_cover_1
+        data:
+          position: 30
+    - conditions:
+      - condition: or
+        conditions:
+        - condition: trigger
+          id: sun_past
+        - condition: trigger
+          id: cloudy
+      - condition: numeric_state
+        entity_id: cover.shellypro2cover_34987a47c9b0_cover_1
+        attribute: current_position
+        below: 50
+      sequence:
+      - action: cover.set_cover_position
+        target:
+          entity_id: cover.shellypro2cover_34987a47c9b0_cover_1
+        data:
+          position: 100
+- id: mensa_sun_shade
+  alias: Mensa Sun Shade (Afternoon)
+  description: >
+    Lower Mensa shade to 30% when sun is in SSW range (170-240°) on sunny days.
+    Also triggers when clouds clear during the SSW window.
+    Raises when sun exits 240°, at 17:00, or if clouds roll in.
+  mode: single
+  triggers:
+  - trigger: numeric_state
+    entity_id: sun.sun
+    attribute: azimuth
+    above: 170
+    id: sun_check
+  - trigger: numeric_state
+    entity_id: weather.forecast_home
+    attribute: cloud_coverage
+    below: 50
+    id: sun_check
+  - trigger: numeric_state
+    entity_id: sun.sun
+    attribute: azimuth
+    above: 240
+    id: sun_exits_ssw
+  - trigger: time
+    at: '17:00:00'
+    id: end_of_day
+  - trigger: numeric_state
+    entity_id: weather.forecast_home
+    attribute: cloud_coverage
+    above: 70
+    id: cloudy
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: sun_check
+      - condition: numeric_state
+        entity_id: sun.sun
+        attribute: azimuth
+        above: 170
+      - condition: numeric_state
+        entity_id: sun.sun
+        attribute: azimuth
+        below: 240
+      - condition: numeric_state
+        entity_id: weather.forecast_home
+        attribute: cloud_coverage
+        below: 50
+      - condition: numeric_state
+        entity_id: sun.sun
+        attribute: elevation
+        above: 15
+      - condition: numeric_state
+        entity_id: cover.shellypro2cover_2cbcbbb1ff9c_cover_0
+        attribute: current_position
+        above: 50
+      sequence:
+      - action: cover.set_cover_position
+        target:
+          entity_id: cover.shellypro2cover_2cbcbbb1ff9c_cover_0
+        data:
+          position: 30
+    - conditions:
+      - condition: or
+        conditions:
+        - condition: trigger
+          id: sun_exits_ssw
+        - condition: trigger
+          id: end_of_day
+        - condition: trigger
+          id: cloudy
+      - condition: numeric_state
+        entity_id: cover.shellypro2cover_2cbcbbb1ff9c_cover_0
+        attribute: current_position
+        below: 50
+      sequence:
+      - action: cover.set_cover_position
+        target:
+          entity_id: cover.shellypro2cover_2cbcbbb1ff9c_cover_0
+        data:
+          position: 100

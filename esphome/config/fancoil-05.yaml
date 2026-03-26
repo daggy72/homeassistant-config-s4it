@@ -1,0 +1,11 @@
+substitutions:
+  name: "fancoil-05"
+  friendly_name: "Fancoil 05"
+  room: "MeetingRoom"
+
+packages:
+  base:
+    url: https://github.com/daggy72/esphome-fancoil
+    ref: main
+    file: fancoil-base.yaml
+    refresh: 0s

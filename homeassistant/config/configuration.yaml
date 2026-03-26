@@ -30,13 +30,11 @@ input_boolean:
 # --- Template entities (fancoil number → Shelly 0-10V brightness) ---
 template: !include templates.yaml
 
-# --- Additional YAML Dashboard ---
-lovelace:
-  mode: storage
-  dashboards:
-    climate-control:
-      mode: yaml
-      title: Climate Control
-      icon: mdi:thermostat
-      filename: dashboards/climate.yaml
-      show_in_sidebar: true
+# --- Panel iframes ---
+panel_iframe:
+  esphome:
+    title: "ESPHome"
+    url: "https://esphome.sales4.it"
+    icon: mdi:chip
+    require_admin: true
+

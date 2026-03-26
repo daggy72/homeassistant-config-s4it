@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-> Key decisions for Home Assistant Config - S4IT
+> Key decisions for Smart Building Domotics - S4IT
 
 ---
 
@@ -94,3 +94,56 @@ Run both containers with `network_mode: host` and `privileged: true`.
 - Containers share host network stack (port conflicts possible)
 - Privileged mode reduces container isolation
 - Security trade-off accepted for device compatibility
+
+---
+
+## DEC-005: Dual Fancoil Control Architecture
+
+**Date**: 2026-03
+**Status**: Decided
+
+### Context
+The building has two generations of fancoil hardware:
+- **New fancoils**: Stepless variable-speed motors controlled via 0-10V analog signal
+- **Old fancoils**: 3-speed motors (Low/Medium/High) with manual speed selector switches and on/off valve
+
+### Decision
+Maintain two parallel control paths, both driven by Versatile Thermostat:
+1. **New fancoils**: VT valve % → template number entity → Shelly Pro 0-10V PM (light brightness) → 0-10V analog signal
+2. **Old fancoils**: VT on_percent → HA automation → ESP32 Athom 4CH relay board → 3-speed relay interlocking + valve relay
+
+### Rationale
+- Different hardware requires different control methods — no single approach fits both
+- Old fancoils cannot accept analog 0-10V; they need discrete relay switching
+- ESP32 Athom 4CH boards are cost-effective and provide WiFi control, OTA updates, and physical button fallback
+- Break-before-make relay interlocking in ESPHome firmware protects motors from damage
+- Cascaded 6-speed mapping (for dual-room zones) maximizes granularity from 3-speed hardware
+
+### Consequences
+- Two sets of entities and automations to maintain (template numbers for new, fan entities for old)
+- ESPHome firmware managed in separate GitHub repo (`daggy72/esphome-fancoil`)
+- ESP devices require NoT VLAN (10.0.30.0/24) network infrastructure
+
+---
+
+## DEC-006: ESPHome Remote Package Management
+
+**Date**: 2026-03
+**Status**: Decided
+
+### Context
+10 ESP32 fancoil devices share identical firmware logic but have device-specific names and IPs. Maintaining copies of the base config in each device file would be error-prone.
+
+### Decision
+Host the shared fancoil controller firmware (`fancoil-base.yaml`) in a dedicated GitHub repository (`daggy72/esphome-fancoil`). Each device YAML file uses ESPHome's `packages` feature to fetch the base config remotely with daily refresh.
+
+### Rationale
+- Single source of truth for controller logic (relay interlocking, fan template, sensors)
+- Firmware updates propagate to all devices on next compile
+- Device files stay minimal: just name, IP, zone, and package reference
+- GitHub provides version history for firmware changes
+
+### Consequences
+- ESPHome needs internet access to fetch packages on first compile (cached after)
+- Breaking changes in base package affect all 10 devices simultaneously
+- Must test firmware changes before pushing to main branch

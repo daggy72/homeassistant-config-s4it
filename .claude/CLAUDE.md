@@ -5,7 +5,7 @@
 
 ## Project Overview
 
-Version-controlled smart building automation stack for the Sales4Italy warehouse/office in Cassano Magnago. Monorepo managing Home Assistant, ESPHome, and supporting services.
+Version-controlled domotics system for the Sales4Italy warehouse/office in Cassano Magnago. Monorepo managing Home Assistant, ESPHome, and supporting services. Expanding from climate control to cover sunscreens (tende), lighting, and additional smart devices.
 
 ## Global Configuration
 
@@ -63,21 +63,24 @@ All services use `network_mode: host`. Paths are parameterized via `DOCKER_BASE`
 - **Platform**: Home Assistant + ESPHome + Matter Server (Docker on Synology NAS)
 - **Config**: YAML
 - **Custom Components**: Versatile Thermostat (valve mode), Nector200, HACS
-- **Hardware**: Shelly Pro 4PM, Shelly Pro 0-10V PM, UP Sense sensors, Wallbox, Tado, ESP devices
-- **Network**: UniFi UDM Pro (10.0.10.x), host networking for Docker
+- **Hardware**: Shelly Pro 4PM, Shelly Pro 0-10V PM, ESP32 Athom 4CH relay boards, UP Sense sensors, Wallbox, Tado
+- **Network (LAN)**: UniFi UDM Pro (10.0.10.x), host networking for Docker
+- **Network (IoT)**: NoT VLAN 10.0.30.0/24 (no internet) for ESPHome devices, fixed IPs 10.0.30.41-50
 - **Proxy**: hacm1.sales4.it:443 → localhost:8123
 
 ## Home Assistant
 
 ### Climate Architecture
 
-**Approach**: Versatile Thermostat (valve mode) → template number entity → Shelly Pro 0-10V PM (light brightness)
+Two generations of fancoil hardware coexist, both driven by Versatile Thermostat:
 
-The VT outputs a 0-100% valve position. Template numbers in `homeassistant/config/templates.yaml` map this to Shelly 0-10V brightness, which drives the fancoil speed.
+**New fancoils (stepless)**: VT valve % → template number → Shelly Pro 0-10V PM (light brightness) → 0-10V analog signal. Template numbers in `homeassistant/config/templates.yaml` map valve position to Shelly brightness.
+
+**Old fancoils (3-speed)**: VT on_percent → HA automation → ESP32 Athom 4CH relay board → 3-speed relay (Low/Med/High) + valve relay. The `Fancoil Speed Control` automation in `automations.yaml` handles cascaded 6-speed mapping for dual-room zones and 3-speed for single-room zones.
 
 **Seasonal toggle**: `input_boolean.heating_season` switches VT between heat/cool HVAC modes.
 
-#### Fancoil Entities (templates.yaml)
+#### New Fancoil Entities (templates.yaml — Shelly 0-10V)
 
 | Template Number | Shelly 0-10V Entity |
 |-----------------|---------------------|
@@ -85,6 +88,17 @@ The VT outputs a 0-100% valve position. Template numbers in `homeassistant/confi
 | Fancoil Mensa 2 | `light.shellypro0110pm_8813bfd9525c` |
 | Fancoil Projects 1 | `light.shellypro0110pm_8813bfe0e42c` |
 | Fancoil Projects 2 | `light.shellypro0110pm_8813bfd95330` |
+
+#### Old Fancoil Entities (ESPHome — ESP32 Athom 4CH relay)
+
+| Fan Entity | Zone | Room Type |
+|------------|------|-----------|
+| `fan.fancoil_01_fancoil`, `fan.fancoil_02_fancoil` | OpenSpace | Dual (6-speed cascade) |
+| `fan.fancoil_03_fancoil` | Entrance | Single (3-speed) |
+| `fan.fancoil_04_fancoil` | Reception | Single (3-speed) |
+| `fan.fancoil_05_fancoil`, `fan.fancoil_06_fancoil` | MeetingRoom | Dual (6-speed cascade) |
+| `fan.fancoil_07_fancoil`, `fan.fancoil_08_fancoil` | CustomerService | Dual (6-speed cascade) |
+| `fan.fancoil_09_fancoil`, `fan.fancoil_10_fancoil` | Tania | Dual (6-speed cascade) |
 
 #### Climate Zones (Versatile Thermostat entities)
 
@@ -95,6 +109,9 @@ The VT outputs a 0-100% valve position. Template numbers in `homeassistant/confi
 | Meeting Room | `climate.meeting_room_climate` | Meeting Room Climate Schedule |
 | Open Space | `climate.open_space_climate` | Open Space Climate Schedule |
 | Mensa | `climate.mensa_climate` | Mensa Climate Schedule |
+| Tania | `climate.fancoil_tania` | — |
+| Reception | `climate.fancoil_reception` | — |
+| Entrance | `climate.fancoil_entrance` | — |
 
 ### Automations
 
@@ -105,6 +122,7 @@ The VT outputs a 0-100% valve position. Template numbers in `homeassistant/confi
 | Kitchen Appliances | Time: 8:00 on / 19:00 off (Mon-Sat) | Smart plugs for kitchen devices |
 | Auto Unlock Wallbox | Zone: enter home (geofence) | Unlock EV charger when Dagmar arrives |
 | Fancoil Seasonal Mode Toggle | State: `input_boolean.heating_season` | Switches VT between heat/cool mode |
+| Fancoil Speed Control | State: VT `on_percent` attribute | Maps VT demand to ESP32 fan speed (old fancoils) |
 
 #### Blueprint-based Automations (office_climate_schedule.yaml)
 
@@ -120,10 +138,26 @@ All use `blueprints/automation/custom/office_climate_schedule.yaml`. Workday-awa
 
 ## ESPHome
 
+### Device Fleet
+
+10 ESP32 Athom 4CH relay boards controlling old 3-speed fancoils:
+
+| Devices | IPs | Zone |
+|---------|-----|------|
+| fancoil-01, -02 | 10.0.30.41-42 | OpenSpace |
+| fancoil-03 | 10.0.30.43 | Entrance |
+| fancoil-04 | 10.0.30.44 | Reception |
+| fancoil-05, -06 | 10.0.30.45-46 | MeetingRoom |
+| fancoil-07, -08 | 10.0.30.47-48 | CustomerService |
+| fancoil-09, -10 | 10.0.30.49-50 | Tania |
+
+All devices on NoT VLAN (10.0.30.0/24, no internet). Firmware sourced from GitHub package `daggy72/esphome-fancoil` (daily refresh).
+
 ### Working with ESPHome YAML
 
 - One YAML file per device in `esphome/config/`
-- Shared configuration in `esphome/config/common/` (wifi, base settings)
+- Shared firmware via remote GitHub package (`packages` key) — device files are minimal (name, IP, zone)
+- Local shared config in `esphome/config/common/` (wifi, base settings)
 - Use `!include` and `!secret` for shared config and credentials
 - ESPHome dashboard at port 6052 for compiling and flashing
 - Secrets in `esphome/config/secrets.yaml` (NOT in git)

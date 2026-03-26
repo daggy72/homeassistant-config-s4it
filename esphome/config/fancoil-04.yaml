@@ -1,0 +1,11 @@
+substitutions:
+  name: "fancoil-04"
+  friendly_name: "Fancoil 04"
+  room: "Reception"
+
+packages:
+  base:
+    url: https://github.com/daggy72/esphome-fancoil
+    ref: main
+    file: fancoil-base.yaml
+    refresh: 0s

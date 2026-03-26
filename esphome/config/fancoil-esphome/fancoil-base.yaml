@@ -1,0 +1,287 @@
+# =============================================================
+# ESPHome Fancoil Controller — Athom 4CH ESP32 Relay Board
+# =============================================================
+# Relay 1 (GPIO27) = Fan Speed 1 (Low)
+# Relay 2 (GPIO14) = Fan Speed 2 (Medium)
+# Relay 3 (GPIO12) = Fan Speed 3 (High)
+# Relay 4 (GPIO13) = Valve (on/off)
+#
+# Button 1 (GPIO36) = Set speed 1 (Low)
+# Button 2 (GPIO39) = Set speed 2 (Medium)
+# Button 3 (GPIO34) = Set speed 3 (High)
+# Button 4 (GPIO35) = Toggle valve / fan on/off
+#
+# INTERLOCKING: Only one speed relay is ever ON at a time.
+#               All relays switch OFF before the new one turns ON
+#               (break-before-make) to protect the fan motor.
+#
+# USAGE: Do not use this file directly. Each device includes
+#        this file via !include and overrides name/room only.
+# =============================================================
+
+esphome:
+  name: "${name}"
+  friendly_name: "${friendly_name}"
+  comment: "3-speed fancoil controller on Athom 4CH relay board"
+  area: "${room}"
+  platformio_options:
+    board_build.flash_mode: dio
+
+esp32:
+  board: esp32dev
+  flash_size: 4MB
+  framework:
+    type: esp-idf
+    version: recommended
+
+preferences:
+  flash_write_interval: 5min
+
+# --- Logging -----------------------------------------------
+logger:
+  baud_rate: 115200
+  level: DEBUG
+
+# --- Network -----------------------------------------------
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  fast_connect: false
+  ap:
+    ssid: "${name}-fallback"
+    password: !secret fallback_password
+
+captive_portal:
+
+mdns:
+  disabled: false
+
+web_server:
+  port: 80
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+# --- Relays (internal — controlled by the fan component) ---
+switch:
+  - platform: gpio
+    pin: GPIO27
+    id: relay_speed1
+    name: "Relay Speed 1"
+    internal: true
+    restore_mode: ALWAYS_OFF
+
+  - platform: gpio
+    pin: GPIO14
+    id: relay_speed2
+    name: "Relay Speed 2"
+    internal: true
+    restore_mode: ALWAYS_OFF
+
+  - platform: gpio
+    pin: GPIO12
+    id: relay_speed3
+    name: "Relay Speed 3"
+    internal: true
+    restore_mode: ALWAYS_OFF
+
+  - platform: gpio
+    pin: GPIO13
+    id: relay_valve
+    name: "Relay Valve"
+    internal: true
+    restore_mode: ALWAYS_OFF
+
+
+# --- Fan component (appears in Home Assistant) -------------
+fan:
+  - platform: template
+    name: "Fancoil"
+    id: fancoil
+    speed_count: 3
+    has_oscillating: false
+    has_direction: false
+    restore_mode: ALWAYS_OFF
+
+    on_turn_on:
+      # Open the valve and default to speed 1 if no speed is set
+      - switch.turn_on: relay_valve
+      - lambda: |-
+          if (id(fancoil).speed == 0) {
+            auto call = id(fancoil).make_call();
+            call.set_speed(1);
+            call.perform();
+          }
+
+    on_turn_off:
+      # Turn off all speed relays and close the valve
+      - switch.turn_off: relay_speed1
+      - switch.turn_off: relay_speed2
+      - switch.turn_off: relay_speed3
+      - switch.turn_off: relay_valve
+
+    on_speed_set:
+      then:
+        - lambda: |-
+            // Turn all speed relays OFF first (break-before-make)
+            id(relay_speed1).turn_off();
+            id(relay_speed2).turn_off();
+            id(relay_speed3).turn_off();
+        # Small delay to ensure relays are fully open before closing new one
+        - delay: 50ms
+        - lambda: |-
+            int spd = id(fancoil).speed;
+            if (id(fancoil).state) {
+              // Ensure valve is open
+              id(relay_valve).turn_on();
+              if (spd == 1) id(relay_speed1).turn_on();
+              else if (spd == 2) id(relay_speed2).turn_on();
+              else if (spd == 3) id(relay_speed3).turn_on();
+            }
+
+# --- Physical buttons --------------------------------------
+binary_sensor:
+  - platform: status
+    name: "Status"
+    entity_category: "diagnostic"
+
+  # Button 1 — Speed 1 (Low)
+  - platform: gpio
+    pin:
+      number: GPIO36
+      mode: INPUT
+      inverted: true
+    name: "Button Speed 1"
+    disabled_by_default: true
+    on_multi_click:
+      - timing:
+          - ON for at most 1s
+          - OFF for at least 0.2s
+        then:
+          - fan.turn_on:
+              id: fancoil
+              speed: 1
+      - timing:
+          - ON for at least 4s
+        then:
+          - button.press: factory_reset_btn
+
+  # Button 2 — Speed 2 (Medium)
+  - platform: gpio
+    pin:
+      number: GPIO39
+      mode: INPUT
+      inverted: true
+    name: "Button Speed 2"
+    disabled_by_default: true
+    on_press:
+      then:
+        - fan.turn_on:
+            id: fancoil
+            speed: 2
+
+  # Button 3 — Speed 3 (High)
+  - platform: gpio
+    pin:
+      number: GPIO34
+      mode: INPUT
+      inverted: true
+    name: "Button Speed 3"
+    disabled_by_default: true
+    on_press:
+      then:
+        - fan.turn_on:
+            id: fancoil
+            speed: 3
+
+  # Button 4 — Toggle fan on/off (valve)
+  - platform: gpio
+    pin:
+      number: GPIO35
+      mode: INPUT
+      inverted: true
+    name: "Button On-Off"
+    disabled_by_default: true
+    on_press:
+      then:
+        - fan.toggle: fancoil
+
+# --- Diagnostics -------------------------------------------
+sensor:
+  - platform: uptime
+    name: "Uptime"
+    id: uptime_sensor
+    type: timestamp
+    entity_category: "diagnostic"
+
+  - platform: wifi_signal
+    name: "WiFi Signal dB"
+    id: wifi_signal_db
+    update_interval: 60s
+    entity_category: "diagnostic"
+
+  - platform: copy
+    source_id: wifi_signal_db
+    name: "WiFi Signal %"
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+    unit_of_measurement: "%"
+    entity_category: "diagnostic"
+
+button:
+  - platform: restart
+    name: "Restart"
+    entity_category: "config"
+
+  - platform: factory_reset
+    name: "Factory Reset"
+    id: factory_reset_btn
+    entity_category: "config"
+
+  - platform: safe_mode
+    name: "Safe Mode"
+    entity_category: "config"
+
+light:
+  - platform: status_led
+    name: "Status LED"
+    disabled_by_default: true
+    pin: GPIO15
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      entity_category: "diagnostic"
+    ssid:
+      name: "Connected SSID"
+      entity_category: "diagnostic"
+    mac_address:
+      name: "Mac Address"
+      entity_category: "diagnostic"
+
+  - platform: template
+    name: "Last Restart"
+    id: device_last_restart
+    icon: mdi:clock
+    entity_category: "diagnostic"
+
+# --- Time (synced from Home Assistant, no internet needed) ---
+time:
+  - platform: homeassistant
+    id: ha_time
+    timezone: "Europe/Rome"
+    on_time_sync:
+      then:
+        - if:
+            condition:
+              lambda: 'return id(device_last_restart).state == "";'
+            then:
+              - text_sensor.template.publish:
+                  id: device_last_restart
+                  state: !lambda 'return id(ha_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'

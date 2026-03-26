@@ -19,12 +19,24 @@ standards:
       - Blueprint instances go in `automations.yaml` with `use_blueprint` key
 
   - id: climate-architecture
-    description: Fancoil climate control via Versatile Thermostat
+    description: Dual fancoil climate control via Versatile Thermostat
     patterns:
-      - VT in valve mode outputs 0-100% → template number → Shelly 0-10V brightness
-      - Template numbers in `templates.yaml` bridge VT and Shelly hardware
+      - "New fancoils (stepless): VT valve % → template number → Shelly 0-10V brightness"
+      - "Old fancoils (3-speed): VT on_percent → automation → ESP32 Athom 4CH relay (Low/Med/High + valve)"
+      - Template numbers in `templates.yaml` bridge VT and Shelly hardware (new fancoils only)
+      - Fancoil speed control automation in `automations.yaml` handles ESP32 relay mapping (old fancoils)
       - Seasonal toggle via `input_boolean.heating_season` switches heat/cool
       - Workday sensor (`binary_sensor.workday_sensor`) gates comfort schedules
+
+  - id: esphome-devices
+    description: ESPHome device configuration patterns
+    patterns:
+      - One YAML file per device in `esphome/config/`
+      - Shared firmware via remote GitHub package (`packages` key with `url`, `ref`, `file`)
+      - Device files contain only name, IP, zone, and package reference
+      - Secrets via `!secret` — never hardcoded
+      - Fixed IPs on NoT VLAN (10.0.30.0/24)
+      - Common includes in `esphome/config/common/` for WiFi and base settings
 
   - id: entity-naming
     description: Entity naming conventions

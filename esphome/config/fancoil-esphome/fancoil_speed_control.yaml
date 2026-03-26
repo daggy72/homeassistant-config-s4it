@@ -1,0 +1,50 @@
+alias: Fancoil Speed Control
+description: >
+  Passes the Versatile Thermostat on_percent (0-100%) directly to the
+  corresponding fancoil fan entity as a percentage. ESPHome's speed_count: 3
+  handles all relay logic internally. No thresholds, no logic — just a
+  direct pass-through, the software equivalent of a 0-10V signal.
+
+  Naming convention assumed:
+    VT thermostat : climate.fancoil_01  ... climate.fancoil_10
+    ESPHome fan   : fan.fancoil_01_fancoil ... fan.fancoil_10_fancoil
+
+trigger:
+  - platform: state
+    entity_id:
+      - climate.fancoil_01
+      - climate.fancoil_02
+      - climate.fancoil_03
+      - climate.fancoil_04
+      - climate.fancoil_05
+      - climate.fancoil_06
+      - climate.fancoil_07
+      - climate.fancoil_08
+      - climate.fancoil_09
+      - climate.fancoil_10
+    attribute: on_percent
+
+variables:
+  # Derive the fan entity from the triggering thermostat name
+  # climate.fancoil_01 → fan.fancoil_01_fancoil
+  fan_entity: "fan.{{ trigger.entity_id | replace('climate.', '') }}_fancoil"
+  on_pct: "{{ trigger.to_state.attributes.on_percent | float(0) }}"
+  vt_mode: "{{ trigger.to_state.state }}"
+
+action:
+  - if:
+      - condition: template
+        value_template: "{{ vt_mode == 'off' or on_pct <= 0 }}"
+    then:
+      - service: fan.turn_off
+        target:
+          entity_id: "{{ fan_entity }}"
+    else:
+      - service: fan.turn_on
+        target:
+          entity_id: "{{ fan_entity }}"
+        data:
+          percentage: "{{ on_pct | int }}"
+
+mode: parallel
+max: 10
