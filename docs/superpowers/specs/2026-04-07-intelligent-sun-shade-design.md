@@ -175,7 +175,12 @@ The 9 tunable global threshold `input_number.shade_*` entities (plus the populat
 
 ### Trigger list (all inside `triggers:`)
 
-All `numeric_state` triggers that compare against an `input_number.shade_*` value use the templated form (`above: "{{ states('input_number.shade_X') | float }}"`) for consistency with the condition blocks below and with the existing `office_climate_schedule.yaml` style. This single-form approach is the spec's contract; the writing-plans phase must not mix styles.
+All `numeric_state` triggers that compare against an `input_number.shade_*` value MUST use a **single consistent form** throughout the blueprint. Two forms are acceptable:
+
+1. **Templated form**: `above: "{{ states('input_number.shade_X') | float }}"` — explicit Jinja templating, matches the style used in the condition blocks below.
+2. **Entity-id form**: `above: input_number.shade_X` — HA's native "compare against another entity's state" syntax, cleaner and avoids template parsing overhead. Supported for both `numeric_state` triggers and `numeric_state` conditions since HA 2023.x.
+
+Pick one and apply it consistently. The spec's contract is "single form, no mixing"; the specific form is a writing-plans decision. The implementation plan at `docs/superpowers/plans/2026-04-08-intelligent-sun-shade.md` chose the entity-id form for the blueprint because it's shorter and renders cleaner in the HA UI's trace viewer.
 
 | id | Type | Notes |
 |---|---|---|
