@@ -428,12 +428,16 @@ The "above `shade_clouds_close_threshold`" condition reuses the same threshold a
 
 **Branch 7 — Startup re-evaluation (HA cold start mid-day)**
 
-Handles the case where HA restarts after the sun has already crossed `sun_azimuth_min` for the day. Without this, `numeric_state` triggers wouldn't fire until the next azimuth crossing tomorrow morning. The startup branch re-runs the same predictive-close check that Branch 2 would have run.
+Handles the case where HA restarts after the sun has already crossed `sun_azimuth_min` for the day. Without this, `numeric_state` triggers wouldn't fire until the next azimuth crossing tomorrow morning. The startup branch re-runs the same predictive-close check that Branch 2 would have run, and also writes the per-room `forecast_snapshot` so the evaluator's nightly comparison has the correct "predicted vs actual" delta to analyze.
+
+The sequence begins with a 30-second delay so that `weather.forecast_home`, `sensor.<room>_temp_rate`, and the forecast populator's output have all stabilized before conditions are re-checked (HA fires `homeassistant.start` before all integrations are fully loaded).
 
 ```yaml
 - conditions:
     - condition: trigger
       id: startup
+  sequence:
+    - delay: "00:00:30"
     - condition: state
       entity_id: "{{ manual_grace_timer }}"
       state: idle
@@ -460,7 +464,10 @@ Handles the case where HA restarts after the sun has already crossed `sun_azimut
       entity_id: "{{ cover_entity }}"
       attribute: current_position
       above: 50
-  sequence:
+    - service: input_number.set_value
+      target: { entity_id: "{{ forecast_snapshot }}" }
+      data:
+        value: "{{ states('input_number.shade_today_outdoor_max_forecast') | float }}"
     - service: cover.set_cover_position
       target: { entity_id: "{{ cover_entity }}" }
       data:
@@ -475,7 +482,9 @@ Handles the case where HA restarts after the sun has already crossed `sun_azimut
         message: "{{ room_label }}: startup re-evaluation — closing (conditions met)"
 ```
 
-The `startup` trigger is added to the trigger list as `- trigger: homeassistant, event: start, id: startup` with a small delay to let other entities finish loading.
+Note: this branch uses inline `condition:` items inside the sequence (after the delay) rather than the outer `conditions:` list, because the conditions must be re-checked *after* the delay — the entities they reference may not be loaded yet at the moment the trigger fires. If any inline condition fails, the sequence exits cleanly without writing anything.
+
+The `startup` trigger is added to the trigger list as `- trigger: homeassistant, event: start, id: startup`.
 
 ### Mode
 
@@ -742,7 +751,7 @@ Add this card under the existing "Window Shades" card so the evaluator's current
    - Never propose a change outside the `input_number`'s min/max bounds
    - If `insufficient_data` (e.g., both automations disabled, HA unreachable, or recorder has < 2 hours of data for the sun window), write report but do not propose changes
    - Do not create more than one pending change per run
-   - If there is already an open pending change for the same `input_number`, do not create a new one — supersede the existing one by replacing it in place with updated reasoning (keep the same token so the user's pending Telegram approval still resolves)
+   - If there is already an open pending change for the same `input_number`, do not create a new one — supersede the existing one by updating the `reasoning`, `changes`, and `report_file` fields in place, and **refreshing** `expires_at` to `now + 24h`. The original `token` and `created_at` are preserved so the user's in-flight Telegram approval still resolves against the same token. (This means the user always has a full 24h from the most recent proposal, not a dwindling window from the original.)
 
 ### Trigger #2: `sun-shade-evaluator-morning`
 
@@ -760,7 +769,7 @@ Add this card under the existing "Window Shades" card so the evaluator's current
 3. Procedure:
    - Read `eval-state.json`
    - Call `https://api.telegram.org/bot<TG_BOT_TOKEN>/getUpdates?offset=<last_update_id + 1>`
-   - Parse replies; match (case-insensitive, leading/trailing whitespace tolerated): `^\s*(apply|ignore)\s+(EVAL-\d{4}-\d{2}-\d{2}-[0-9A-HJ-NP-TV-Z]{4})\s*$`
+   - Parse replies; match (case-insensitive, leading/trailing whitespace tolerated): `^\s*(apply|ignore)\s+(EVAL-\d{4}-\d{2}-\d{2}-[0-9A-HJKMNP-TV-Z]{4})\s*$`
    - For each `apply` that matches a pending entry:
      - For each change in the entry: use `Edit` tool on the YAML file to set the new value; then `curl` to `POST /api/services/input_number/set_value` with payload `{"entity_id": "...", "value": ...}` and `Authorization: Bearer <HA_TOKEN>`
      - Append to `docs/sun-shade-eval/applied.log` a line `YYYY-MM-DD HH:MM:SS applied <token> <changes>`
@@ -805,7 +814,7 @@ Add this card under the existing "Window Shades" card so the evaluator's current
 }
 ```
 
-**Token format**: `EVAL-YYYY-MM-DD-XXXX` where XXXX is 4 characters drawn from the Crockford base32 alphabet (`0123456789ABCDEFGHJKMNPQRSTVWXYZ` — no I, L, O, U) for low misread rate on mobile. Matches the regex `EVAL-\d{4}-\d{2}-\d{2}-[0-9A-HJ-NP-TV-Z]{4}`. The morning trigger's reply parser is case-insensitive and tolerates leading/trailing whitespace.
+**Token format**: `EVAL-YYYY-MM-DD-XXXX` where XXXX is 4 characters drawn from the Crockford base32 alphabet (`0123456789ABCDEFGHJKMNPQRSTVWXYZ` — no I, L, O, U) for low misread rate on mobile. Matches the regex `EVAL-\d{4}-\d{2}-\d{2}-[0-9A-HJKMNP-TV-Z]{4}`. The morning trigger's reply parser is case-insensitive and tolerates leading/trailing whitespace.
 
 **Invariants**:
 - At most one pending entry per `input_number.entity_id` at any time
@@ -937,10 +946,11 @@ Order matters: helpers must exist before anything that references them. Each num
 15. **Reload Automations** again; verify both blueprint instances appear, no errors in Logbook or `home-assistant.log`
 16. **Add the dashboard panel** to `homeassistant/config/dashboards/climate.yaml` and reload the dashboard in the UI
 17. **Wait 1 week** of real use on manually-tuned defaults; iterate on thresholds via the UI if needed
-18. **Create the two remote triggers** via `RemoteTrigger.create` with `enabled: false`
-19. **Smoke-test the nightly trigger** manually via `RemoteTrigger.run`
-20. **Smoke-test an approval cycle** — reply `apply EVAL-...` on Telegram, run the morning trigger manually, confirm YAML edit + HA state update
-21. **Enable both triggers** via `RemoteTrigger.update { enabled: true }`
+18. **Initialize `homeassistant/eval-state.json`** with the content `{"version": 1, "last_telegram_update_id": 0, "pending_changes": []}` and commit. This file must exist before step 19 because the nightly trigger procedure reads it unconditionally; initializing it as part of deployment avoids implicit first-run creation logic in the evaluator prompts.
+19. **Create the two remote triggers** via `RemoteTrigger.create` with `enabled: false`
+20. **Smoke-test the nightly trigger** manually via `RemoteTrigger.run`
+21. **Smoke-test an approval cycle** — reply `apply EVAL-...` on Telegram, run the morning trigger manually, confirm YAML edit + HA state update
+22. **Enable both triggers** via `RemoteTrigger.update { enabled: true }`
 
 Each of steps 9, 10, 13, 14, and 16 is independently reloadable and independently reversible via `git revert`.
 
@@ -1150,7 +1160,7 @@ One place, alphabetical, to cross-check that everything referenced exists exactl
 
 ### Files (new — evaluator outputs)
 
-- `homeassistant/eval-state.json`
-- `docs/sun-shade-eval/YYYY-MM-DD.md` (written daily)
-- `docs/sun-shade-eval/applied.log`
-- `docs/sun-shade-eval/ignored.log`
+- `homeassistant/eval-state.json` (initialized at deployment step 18, updated by both triggers)
+- `docs/sun-shade-eval/YYYY-MM-DD.md` (written daily by the nightly trigger)
+- `docs/sun-shade-eval/applied.log` (appended by the morning trigger on each `apply`)
+- `docs/sun-shade-eval/ignored.log` (appended by the morning trigger on each `ignore` or `expired`)
