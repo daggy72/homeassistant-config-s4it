@@ -84,7 +84,7 @@ The evaluator never edits automation logic, only the `input_number` values in YA
 │  Instantiated:  Meeting Room (az 90–150)                            │
 │                 Mensa        (az 170–240)                           │
 │                                                                     │
-│  Reads:  input_number.shade_* (9 thresholds)                        │
+│  Reads:  input_number.shade_* (9 tunable thresholds + 1 forecast)   │
 │          timer.shade_*_manual_grace                                 │
 │          sensor.<room>_temp_rate                                    │
 │          climate.<room>_climate.current_temperature                 │
@@ -164,30 +164,33 @@ The evaluator never edits automation logic, only the `input_number` values in YA
 | `manual_grace_timer` | entity (timer) | `timer.shade_meeting_manual_grace` | `timer.shade_mensa_manual_grace` |
 | `manual_override_counter` | entity (counter) | `counter.meeting_room_manual_override_count` | `counter.mensa_manual_override_count` |
 | `predictive_close_dt` | entity (input_datetime) | `input_datetime.meeting_room_predictive_close_at` | `input_datetime.mensa_predictive_close_at` |
-| `reactive_close_dt` | entity (input_datetime) | `input_datetime.mensa_reactive_close_at` | `input_datetime.mensa_reactive_close_at` |
+| `reactive_close_dt` | entity (input_datetime) | `input_datetime.meeting_room_reactive_close_at` | `input_datetime.mensa_reactive_close_at` |
 | `forecast_snapshot` | entity (input_number) | `input_number.meeting_room_forecast_max_at_window_start` | `input_number.mensa_forecast_max_at_window_start` |
 | `sun_azimuth_min` | number | 90 | 170 |
 | `sun_azimuth_max` | number | 150 | 240 |
 | `sun_elevation_min` | number | 15 | 15 |
 | `room_label` | text | "Meeting Room" | "Mensa" |
 
-The 9 global threshold `input_number.shade_*` entities are referenced **directly** inside the blueprint (not as inputs) because they are shared between instantiations. If we ever want per-room thresholds, we add them as inputs then.
+The 9 tunable global threshold `input_number.shade_*` entities (plus the populator-owned `shade_today_outdoor_max_forecast`) are referenced **directly** inside the blueprint (not as inputs) because they are shared between instantiations. If we ever want per-room thresholds, we add them as inputs then.
 
 ### Trigger list (all inside `triggers:`)
 
-| id | Type | Value |
+All `numeric_state` triggers that compare against an `input_number.shade_*` value use the templated form (`above: "{{ states('input_number.shade_X') | float }}"`) for consistency with the condition blocks below and with the existing `office_climate_schedule.yaml` style. This single-form approach is the spec's contract; the writing-plans phase must not mix styles.
+
+| id | Type | Notes |
 |---|---|---|
-| `window_start` | `numeric_state` on `sun.sun` attribute `azimuth`, `above: sun_azimuth_min` |
-| `window_end` | `numeric_state` on `sun.sun` attribute `azimuth`, `above: sun_azimuth_max` |
-| `elevation_drop` | `numeric_state` on `sun.sun` attribute `elevation`, `below: sun_elevation_min` |
-| `clear_sky` | `numeric_state` on `weather.forecast_home` attribute `cloud_coverage`, `below: input_number.shade_clouds_close_threshold` |
-| `cloudy` | `numeric_state` on `weather.forecast_home` attribute `cloud_coverage`, `above: input_number.shade_clouds_open_threshold` |
-| `room_hot` | `numeric_state` on `{{ room_climate_entity }}` attribute `current_temperature`, `above: input_number.shade_room_cap`, `for: 5m` |
-| `rate_high` | `numeric_state` on `{{ rate_sensor_entity }}`, `above: input_number.shade_rate_threshold`, `for: 5m` |
-| `room_cool` | `numeric_state` on `{{ room_climate_entity }}` attribute `current_temperature`, `below: input_number.shade_room_reopen` |
-| `manual_override` | `state` on `{{ cover_entity }}` with template condition `{{ trigger.to_state.context.user_id is not none }}` |
-| `grace_expired` | `event` `timer.finished` where `event_data.entity_id == manual_grace_timer` |
-| `season_change` | `state` on `input_select.climate_season` (to re-evaluate when user flips season) |
+| `window_start` | `numeric_state` on `sun.sun` attribute `azimuth`, `above: "{{ sun_azimuth_min }}"` | Fires when sun enters the room's azimuth window |
+| `window_end` | `numeric_state` on `sun.sun` attribute `azimuth`, `above: "{{ sun_azimuth_max }}"` | Fires when sun exits the window |
+| `elevation_drop` | `numeric_state` on `sun.sun` attribute `elevation`, `below: "{{ sun_elevation_min }}"` | Fires at end of day / winter low sun |
+| `clear_sky` | `numeric_state` on `weather.forecast_home` attribute `cloud_coverage`, `below: "{{ states('input_number.shade_clouds_close_threshold') | float }}"` | Fires when skies clear mid-window |
+| `cloudy` | `numeric_state` on `weather.forecast_home` attribute `cloud_coverage`, `above: "{{ states('input_number.shade_clouds_open_threshold') | float }}"` | Fires when clouds roll in |
+| `room_hot` | `numeric_state` on `{{ room_climate_entity }}` attribute `current_temperature`, `above: "{{ states('input_number.shade_room_cap') | float }}"`, `for: "00:05:00"` | Reactive close trigger |
+| `rate_high` | `numeric_state` on `{{ rate_sensor_entity }}`, `above: "{{ states('input_number.shade_rate_threshold') | float }}"`, `for: "00:05:00"` | Reactive close trigger |
+| `room_cool` | `numeric_state` on `{{ room_climate_entity }}` attribute `current_temperature`, `below: "{{ states('input_number.shade_room_reopen') | float }}"` | Re-open trigger |
+| `manual_override` | `state` on `{{ cover_entity }}` — no `to:` constraint, fires on any state change | The `user_id is not none` filter is enforced as a **condition** inside Branch 1, not on the trigger, so automation-driven cover changes are ignored safely |
+| `grace_expired` | `event` `timer.finished` where `event_data.entity_id == "{{ manual_grace_timer }}"` | Re-evaluate after grace period |
+| `season_change` | `state` on `input_select.climate_season` | Top-level `not winter` condition handles the actual gating; this trigger just re-checks |
+| `startup` | `homeassistant`, `event: start` | Cold-start re-evaluation, handled by Branch 7 |
 
 ### Conditions (top-level)
 
@@ -205,24 +208,35 @@ condition:
 All branches additionally check that `sun.sun` is above horizon and the sun is in the room's azimuth window (except branches 1 and 6 which handle grace/override logic).
 
 **Branch 1 — Manual override detected**
+
+The trigger fires on any state change of the cover; the `user_id is not none` filter lives in this branch's conditions (not on the trigger) so that automation-driven cover changes are safely ignored without short-circuiting other branches.
+
 ```yaml
 - conditions:
     - condition: trigger
       id: manual_override
+    - condition: template
+      value_template: >
+        {{ trigger.to_state is not none and trigger.to_state.context.user_id is not none }}
   sequence:
     - service: counter.increment
       target: { entity_id: "{{ manual_override_counter }}" }
     - service: timer.start
       target: { entity_id: "{{ manual_grace_timer }}" }
       data:
-        duration: "00:{{ states('input_number.shade_grace_minutes') | int }}:00"
+        duration: "00:{{ '%02d' | format(states('input_number.shade_grace_minutes') | int) }}:00"
     - service: logbook.log
       data:
         name: "Intelligent Sun Shade"
         message: "{{ room_label }}: manual override detected, grace timer started"
 ```
 
+Because `shade_grace_minutes` is bounded to 10–59, the formatted string is always a legal `HH:MM:SS` value (e.g. `"00:30:00"`).
+
 **Branch 2 — Predictive close at window start**
+
+Reads today's forecast max from `input_number.shade_today_outdoor_max_forecast` (populated by the forecast populator automation above), not from `weather.forecast_home`'s deprecated `forecast` attribute. This decouples the blueprint from weather-platform API changes.
+
 ```yaml
 - conditions:
     - condition: trigger
@@ -234,15 +248,9 @@ All branches additionally check that `sun.sun` is above horizon and the sun is i
       entity_id: sun.sun
       attribute: elevation
       above: "{{ sun_elevation_min }}"
-    - condition: template
-      value_template: >
-        {% set fc = state_attr('weather.forecast_home', 'forecast') %}
-        {% if fc %}
-          {% set today_max = fc[0].temperature | float(0) %}
-          {{ today_max >= states('input_number.shade_forecast_max_threshold') | float }}
-        {% else %}
-          false
-        {% endif %}
+    - condition: numeric_state
+      entity_id: input_number.shade_today_outdoor_max_forecast
+      above: "{{ states('input_number.shade_forecast_max_threshold') | float }}"
     - condition: numeric_state
       entity_id: weather.forecast_home
       attribute: cloud_coverage
@@ -255,9 +263,7 @@ All branches additionally check that `sun.sun` is above horizon and the sun is i
     - service: input_number.set_value
       target: { entity_id: "{{ forecast_snapshot }}" }
       data:
-        value: >
-          {% set fc = state_attr('weather.forecast_home', 'forecast') %}
-          {{ fc[0].temperature | float(0) }}
+        value: "{{ states('input_number.shade_today_outdoor_max_forecast') | float }}"
     - service: cover.set_cover_position
       target: { entity_id: "{{ cover_entity }}" }
       data:
@@ -269,7 +275,10 @@ All branches additionally check that `sun.sun` is above horizon and the sun is i
     - service: logbook.log
       data:
         name: "Intelligent Sun Shade"
-        message: "{{ room_label }}: predictive close (forecast {{ state_attr('weather.forecast_home', 'forecast')[0].temperature }}°C, clouds {{ state_attr('weather.forecast_home', 'cloud_coverage') }}%)"
+        message: >
+          {{ room_label }}: predictive close
+          (forecast max {{ states('input_number.shade_today_outdoor_max_forecast') }}°C,
+           clouds {{ state_attr('weather.forecast_home', 'cloud_coverage') }}%)
 ```
 
 **Branch 3 — Reactive override (room hot or rising fast)**
@@ -319,6 +328,9 @@ All branches additionally check that `sun.sun` is above horizon and the sun is i
 ```
 
 **Branch 4 — Re-open (cool + cloudy)**
+
+The "above `shade_clouds_close_threshold`" condition reuses the same threshold as the predictive-close gate, so the two directions are symmetric: below the threshold is "clear enough to warrant closing", above it is "cloudy enough that heating is no longer a concern."
+
 ```yaml
 - conditions:
     - condition: or
@@ -342,7 +354,7 @@ All branches additionally check that `sun.sun` is above horizon and the sun is i
             - condition: numeric_state
               entity_id: weather.forecast_home
               attribute: cloud_coverage
-              above: 50
+              above: "{{ states('input_number.shade_clouds_close_threshold') | float }}"
         - condition: numeric_state
           entity_id: weather.forecast_home
           attribute: cloud_coverage
@@ -400,14 +412,9 @@ All branches additionally check that `sun.sun` is above horizon and the sun is i
           above: "{{ states('input_number.shade_room_cap') | float }}"
         - condition: and
           conditions:
-            - condition: template
-              value_template: >
-                {% set fc = state_attr('weather.forecast_home', 'forecast') %}
-                {% if fc %}
-                  {{ fc[0].temperature | float(0) >= states('input_number.shade_forecast_max_threshold') | float }}
-                {% else %}
-                  false
-                {% endif %}
+            - condition: numeric_state
+              entity_id: input_number.shade_today_outdoor_max_forecast
+              above: "{{ states('input_number.shade_forecast_max_threshold') | float }}"
             - condition: numeric_state
               entity_id: weather.forecast_home
               attribute: cloud_coverage
@@ -418,6 +425,57 @@ All branches additionally check that `sun.sun` is above horizon and the sun is i
       data:
         position: "{{ states('input_number.shade_closed_position') | int }}"
 ```
+
+**Branch 7 — Startup re-evaluation (HA cold start mid-day)**
+
+Handles the case where HA restarts after the sun has already crossed `sun_azimuth_min` for the day. Without this, `numeric_state` triggers wouldn't fire until the next azimuth crossing tomorrow morning. The startup branch re-runs the same predictive-close check that Branch 2 would have run.
+
+```yaml
+- conditions:
+    - condition: trigger
+      id: startup
+    - condition: state
+      entity_id: "{{ manual_grace_timer }}"
+      state: idle
+    - condition: numeric_state
+      entity_id: sun.sun
+      attribute: azimuth
+      above: "{{ sun_azimuth_min }}"
+    - condition: numeric_state
+      entity_id: sun.sun
+      attribute: azimuth
+      below: "{{ sun_azimuth_max }}"
+    - condition: numeric_state
+      entity_id: sun.sun
+      attribute: elevation
+      above: "{{ sun_elevation_min }}"
+    - condition: numeric_state
+      entity_id: input_number.shade_today_outdoor_max_forecast
+      above: "{{ states('input_number.shade_forecast_max_threshold') | float }}"
+    - condition: numeric_state
+      entity_id: weather.forecast_home
+      attribute: cloud_coverage
+      below: "{{ states('input_number.shade_clouds_close_threshold') | float }}"
+    - condition: numeric_state
+      entity_id: "{{ cover_entity }}"
+      attribute: current_position
+      above: 50
+  sequence:
+    - service: cover.set_cover_position
+      target: { entity_id: "{{ cover_entity }}" }
+      data:
+        position: "{{ states('input_number.shade_closed_position') | int }}"
+    - service: input_datetime.set_datetime
+      target: { entity_id: "{{ predictive_close_dt }}" }
+      data:
+        datetime: "{{ now().isoformat() }}"
+    - service: logbook.log
+      data:
+        name: "Intelligent Sun Shade"
+        message: "{{ room_label }}: startup re-evaluation — closing (conditions met)"
+```
+
+The `startup` trigger is added to the trigger list as `- trigger: homeassistant, event: start, id: startup` with a small delay to let other entities finish loading.
 
 ### Mode
 
@@ -439,9 +497,57 @@ Single source of truth, shared between both blueprint instances:
 | `input_number.shade_room_reopen` | 23.0 | 21 | 25 | 0.5 | °C |
 | `input_number.shade_closed_position` | 30 | 0 | 50 | 5 | % |
 | `input_number.shade_open_position` | 100 | 50 | 100 | 5 | % |
-| `input_number.shade_grace_minutes` | 30 | 10 | 120 | 5 | min |
+| `input_number.shade_grace_minutes` | 30 | 10 | 59 | 1 | min |
+| `input_number.shade_today_outdoor_max_forecast` | 0 | -20 | 50 | 0.1 | °C |
 
 All have `mode: box` so the user can also type a value directly in the UI.
+
+**Note on `shade_grace_minutes` max=59**: HA's `timer.start` service expects duration in `HH:MM:SS` format. Capping at 59 guarantees the minutes-only formatted duration string is always valid. If a longer grace period is ever needed, change the duration template to include an `HH:` component.
+
+**`shade_today_outdoor_max_forecast` is NOT user-tunable by the evaluator.** It is overwritten daily by the populator automation below. It is listed with the threshold helpers because it lives in the same file, but the evaluator must not propose changes to it.
+
+### Forecast populator automation (new automation in `automations.yaml`)
+
+`weather.forecast_home`'s `forecast` attribute was deprecated in HA 2024.4. The modern way is to call the `weather.get_forecasts` action with a response variable. We do this in a dedicated automation that writes today's max into `input_number.shade_today_outdoor_max_forecast`, so the blueprint can read a single sensor state instead of calling a service from within a condition (which HA does not support).
+
+```yaml
+- id: sun_shade_forecast_populator
+  alias: Sun Shade — Populate today's outdoor max forecast
+  description: >
+    Fetches today's forecast max from weather.forecast_home via the
+    get_forecasts action and stores it in input_number.shade_today_outdoor_max_forecast
+    for the blueprint's predictive-close condition.
+  triggers:
+    - trigger: homeassistant
+      event: start
+    - trigger: time
+      at: "06:00:00"
+    - trigger: time_pattern
+      hours: "/1"
+      minutes: 5
+  actions:
+    - action: weather.get_forecasts
+      target:
+        entity_id: weather.forecast_home
+      data:
+        type: daily
+      response_variable: forecast_response
+    - variables:
+        today_max: >
+          {% set fc = forecast_response['weather.forecast_home'].forecast %}
+          {% if fc and fc | length > 0 %}
+            {{ fc[0].temperature | float(0) }}
+          {% else %}
+            0
+          {% endif %}
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.shade_today_outdoor_max_forecast
+      data:
+        value: "{{ today_max }}"
+```
+
+Runs on HA startup (for cold-start recovery), at 06:00 daily (before the sun window), and every hour at :05 (to catch forecast updates during the day).
 
 ### Per-room snapshots (`input_numbers.yaml`, same file)
 
@@ -473,12 +579,17 @@ All have `mode: box` so the user can also type a value directly in the UI.
 | `counter.meeting_room_manual_override_count` | 0 | true | Midnight, via automation |
 | `counter.mensa_manual_override_count` | 0 | true | Midnight, via automation |
 
-### Sensors (`sensors.yaml`)
+### Sensors — two locations
 
-Two template sensors (to expose climate attribute as a plain sensor) plus two derivative sensors:
+Modern `template:` sensors and legacy `sensor:` platform entries must live in **separate files** because `configuration.yaml` includes them under different top-level keys. We use:
+
+- **`homeassistant/config/templates.yaml`** (already wired as `template: !include templates.yaml` in `configuration.yaml:36`) — for the two new template sensors that expose climate attributes as plain sensors
+- **`homeassistant/config/sensors.yaml`** (new file, wired as `sensor: !include sensors.yaml`) — for the two new derivative sensors
+
+#### Template sensors — append to existing `homeassistant/config/templates.yaml`
 
 ```yaml
-- sensor:
+# (append to the existing `- sensor:` list that already holds the fancoil demand sensors)
     - name: "Meeting Room Temp"
       unique_id: meeting_room_temp
       state: "{{ state_attr('climate.meeting_room_climate', 'current_temperature') }}"
@@ -494,9 +605,13 @@ Two template sensors (to expose climate attribute as a plain sensor) plus two de
       device_class: temperature
       availability: >
         {{ state_attr('climate.mensa_climate', 'current_temperature') is not none }}
+```
 
-# Derivative sensors must be declared in configuration.yaml under sensor: (platform: derivative)
-# or via the UI; they CANNOT live in templates.yaml. Put them in sensors.yaml:
+These sensors are needed because HA's `derivative` platform reads from an entity's primary state, not from an attribute. We materialize the `current_temperature` attribute as a numeric sensor state, then derivative-difference it.
+
+#### Derivative sensors — new file `homeassistant/config/sensors.yaml`
+
+```yaml
 - platform: derivative
   source: sensor.meeting_room_temp
   name: "Meeting Room Temp Rate"
@@ -514,7 +629,7 @@ Two template sensors (to expose climate attribute as a plain sensor) plus two de
   round: 2
 ```
 
-Note: HA's modern `template:` syntax and legacy `sensor:` platform syntax need to be in separate files or separate list items. The writing-plans phase will split these cleanly.
+Wire into `configuration.yaml` with `sensor: !include sensors.yaml`.
 
 ### Midnight counter reset (new automation in `automations.yaml`)
 
@@ -535,9 +650,72 @@ Note: HA's modern `template:` syntax and legacy `sensor:` platform syntax need t
 
 ### Dashboard panel (modification to `dashboards/climate.yaml`)
 
-Add a new `entities` card under the existing "Window Shades" card showing the 9 threshold values + 2 override counters + 4 close-timestamps, so the user can see the evaluator's current configuration at a glance. Exact YAML to be produced in the implementation phase.
+Add this card under the existing "Window Shades" card so the evaluator's current configuration and recent activity are visible at a glance:
+
+```yaml
+- type: entities
+  title: Sun Shade — Thresholds & Activity
+  state_color: true
+  entities:
+    - type: section
+      label: Global thresholds
+    - entity: input_number.shade_forecast_max_threshold
+      name: Forecast trigger
+    - entity: input_number.shade_clouds_close_threshold
+      name: Clouds (close)
+    - entity: input_number.shade_clouds_open_threshold
+      name: Clouds (open)
+    - entity: input_number.shade_room_cap
+      name: Room cap
+    - entity: input_number.shade_rate_threshold
+      name: Rate of rise
+    - entity: input_number.shade_room_reopen
+      name: Room re-open
+    - entity: input_number.shade_closed_position
+      name: Closed position
+    - entity: input_number.shade_open_position
+      name: Open position
+    - entity: input_number.shade_grace_minutes
+      name: Grace (minutes)
+    - type: section
+      label: Today
+    - entity: input_number.shade_today_outdoor_max_forecast
+      name: Forecast max today
+    - entity: input_number.meeting_room_forecast_max_at_window_start
+      name: Meeting — forecast at 08:00
+    - entity: input_number.mensa_forecast_max_at_window_start
+      name: Mensa — forecast at 11:00
+    - type: section
+      label: Manual overrides (today)
+    - entity: counter.meeting_room_manual_override_count
+      name: Meeting
+    - entity: counter.mensa_manual_override_count
+      name: Mensa
+    - type: section
+      label: Last close events
+    - entity: input_datetime.meeting_room_predictive_close_at
+      name: Meeting — predictive
+    - entity: input_datetime.meeting_room_reactive_close_at
+      name: Meeting — reactive
+    - entity: input_datetime.mensa_predictive_close_at
+      name: Mensa — predictive
+    - entity: input_datetime.mensa_reactive_close_at
+      name: Mensa — reactive
+    - type: section
+      label: Grace timers
+    - entity: timer.shade_meeting_manual_grace
+      name: Meeting
+    - entity: timer.shade_mensa_manual_grace
+      name: Mensa
+```
 
 ## Component 3 — Evaluator (remote triggers)
+
+### Timezone and ordering invariants
+
+**Timezone**: `RemoteTrigger` cron expressions are **always interpreted in UTC**, never local time. The spec pins schedules in UTC and accepts that local clock-time shifts by 1 hour between CEST and CET.
+
+**Ordering invariant**: The schedule must satisfy `nightly_trigger_time < midnight_local < midnight_counter_reset < morning_trigger_time`. With 21:00 UTC nightly + 00:00:01 local counter reset + 05:00 UTC morning, this holds year-round for Europe/Rome. If anyone later moves the nightly trigger to after 22:00 UTC (= after 00:00 CEST), the nightly run would read a zeroed counter instead of the day's actual override count. The nightly time must not drift past 21:59 UTC without also moving the counter reset.
 
 ### Trigger #1: `sun-shade-evaluator-nightly`
 
@@ -547,23 +725,24 @@ Add a new `entities` card under the existing "Window Shades" card showing the 9 
 **Sources**: `https://github.com/daggy72/homeassistant-config-s4it`
 **MCP connections**: `HomeAssistant-CM1` (connector_uuid `3e8341aa-e108-4345-97dd-8679a0bc7c8b`) — attached as a fallback for live state queries; most data comes via HA REST API with the LLT
 
-**Prompt structure** (full text to be drafted during implementation):
+**Prompt structure** (skeleton — see the Report and Telegram message templates in the sections below for the exact prose this trigger emits):
 
-1. Preamble explaining the system, referencing this spec file in the repo
+1. Preamble explaining the system, referencing this spec file (`docs/superpowers/specs/2026-04-07-intelligent-sun-shade-design.md`) in the repo
 2. Constants section:
    - `HA_BASE_URL=https://hacm1.sales4.it`
    - `HA_TOKEN=<long-lived access token>`  ← embedded literal, never in git
    - `TG_BOT_TOKEN=<telegram bot token>`   ← embedded literal
    - `TG_CHAT_ID=<telegram chat id>`       ← embedded literal
-3. Step-by-step procedure (matches architecture diagram)
-4. Report template (per-room metrics, verdict, proposed changes)
-5. Telegram message template
+3. Step-by-step procedure — follows the architecture-diagram step list for Trigger #1 exactly
+4. **Report format**: use the structure defined in "Telegram message formats" below (the "Nightly — analysis report" and "Nightly — no change to propose" templates). The markdown file in `docs/sun-shade-eval/YYYY-MM-DD.md` is the Telegram message plus per-room raw metrics (min/max/peak-time/time-above-cap/cover timeline tables).
+5. **Telegram message format**: reuse the "Nightly — analysis report" or "Nightly — no change to propose" template verbatim; never invent new formats ad-hoc.
 6. Guardrails:
    - Never edit blueprint YAML, only `input_number` values
+   - Never propose a change to `input_number.shade_today_outdoor_max_forecast` (it is populator-owned, not a tunable threshold)
    - Never propose a change outside the `input_number`'s min/max bounds
-   - If `insufficient_data` (e.g., both automations disabled, or HA unreachable), write report but do not propose changes
+   - If `insufficient_data` (e.g., both automations disabled, HA unreachable, or recorder has < 2 hours of data for the sun window), write report but do not propose changes
    - Do not create more than one pending change per run
-   - If there is already an open pending change for the same `input_number`, do not create a new one — replace the existing one with updated reasoning
+   - If there is already an open pending change for the same `input_number`, do not create a new one — supersede the existing one by replacing it in place with updated reasoning (keep the same token so the user's pending Telegram approval still resolves)
 
 ### Trigger #2: `sun-shade-evaluator-morning`
 
@@ -581,7 +760,7 @@ Add a new `entities` card under the existing "Window Shades" card showing the 9 
 3. Procedure:
    - Read `eval-state.json`
    - Call `https://api.telegram.org/bot<TG_BOT_TOKEN>/getUpdates?offset=<last_update_id + 1>`
-   - Parse replies; match `^(apply|ignore)\s+(EVAL-\d{4}-\d{2}-\d{2}-[A-Z0-9]{4})\s*$`
+   - Parse replies; match (case-insensitive, leading/trailing whitespace tolerated): `^\s*(apply|ignore)\s+(EVAL-\d{4}-\d{2}-\d{2}-[0-9A-HJ-NP-TV-Z]{4})\s*$`
    - For each `apply` that matches a pending entry:
      - For each change in the entry: use `Edit` tool on the YAML file to set the new value; then `curl` to `POST /api/services/input_number/set_value` with payload `{"entity_id": "...", "value": ...}` and `Authorization: Bearer <HA_TOKEN>`
      - Append to `docs/sun-shade-eval/applied.log` a line `YYYY-MM-DD HH:MM:SS applied <token> <changes>`
@@ -626,7 +805,7 @@ Add a new `entities` card under the existing "Window Shades" card showing the 9 
 }
 ```
 
-**Token format**: `EVAL-YYYY-MM-DD-XXXX` where XXXX is 4 random uppercase alphanumerics (collision-unlikely, human-readable, single-word copy-pasteable in Telegram).
+**Token format**: `EVAL-YYYY-MM-DD-XXXX` where XXXX is 4 characters drawn from the Crockford base32 alphabet (`0123456789ABCDEFGHJKMNPQRSTVWXYZ` — no I, L, O, U) for low misread rate on mobile. Matches the regex `EVAL-\d{4}-\d{2}-\d{2}-[0-9A-HJ-NP-TV-Z]{4}`. The morning trigger's reply parser is case-insensitive and tolerates leading/trailing whitespace.
 
 **Invariants**:
 - At most one pending entry per `input_number.entity_id` at any time
@@ -719,15 +898,16 @@ No changes proposed. Full report: docs/sun-shade-eval/2026-04-07.md
 3. `homeassistant/config/input_datetimes.yaml`
 4. `homeassistant/config/timers.yaml`
 5. `homeassistant/config/counters.yaml`
-6. `homeassistant/config/sensors.yaml`
+6. `homeassistant/config/sensors.yaml` — derivative sensors only
 7. `homeassistant/eval-state.json`
 8. `docs/sun-shade-eval/.gitkeep`
 
-### Modified files (3)
+### Modified files (4)
 
-1. `homeassistant/config/configuration.yaml` — add includes for the 5 new helper files
-2. `homeassistant/config/automations.yaml` — delete `mensa_sun_shade`; add 2 blueprint instantiations, midnight counter reset, manual override detection if not handled by blueprint
-3. `homeassistant/config/dashboards/climate.yaml` — add threshold/override panel under Window Shades
+1. `homeassistant/config/configuration.yaml` — add `input_number: !include input_numbers.yaml`, `input_datetime: !include input_datetimes.yaml`, `timer: !include timers.yaml`, `counter: !include counters.yaml`, `sensor: !include sensors.yaml` (5 new includes; the existing `template: !include templates.yaml` is reused, not duplicated)
+2. `homeassistant/config/templates.yaml` — append 2 template sensors (`Meeting Room Temp`, `Mensa Temp`) to the existing `- sensor:` list
+3. `homeassistant/config/automations.yaml` — delete `mensa_sun_shade`; add 2 blueprint instantiations, the forecast populator automation, and the midnight counter reset automation. Manual override detection is handled inside the blueprint (Branch 1), not as a separate automation.
+4. `homeassistant/config/dashboards/climate.yaml` — add the `Sun Shade — Thresholds & Activity` entities card under the existing Window Shades card
 
 ### Unchanged
 
@@ -738,23 +918,31 @@ No changes proposed. Full report: docs/sun-shade-eval/2026-04-07.md
 
 ## Deployment order (critical)
 
-Order matters: helpers must exist before anything that references them.
+Order matters: helpers must exist before anything that references them. Each numbered step is an atomic reload/restart boundary — complete and verify before moving to the next.
 
-1. **Create helper files first**: `input_numbers.yaml`, `input_datetimes.yaml`, `timers.yaml`, `counters.yaml`, `sensors.yaml`
-2. **Update `configuration.yaml`** to include them
-3. **Run HA config check** (per CLAUDE.md)
-4. **Restart HA** — helpers can't be referenced before they exist in the registry
-5. **Verify in HA UI**: all 9 global threshold helpers exist at their default values; all per-room helpers exist; derivative sensors appear (may read `unknown` for first 30 min)
-6. **Create the blueprint file**
-7. **Reload Blueprints** via HA UI (Settings → Automations & Scenes → Blueprints → Reload)
-8. **Edit `automations.yaml`**: delete `mensa_sun_shade`, add the 2 blueprint instantiations, add midnight counter reset, add the dashboard panel to `dashboards/climate.yaml`
-9. **Reload Automations** via HA UI
-10. **Verify**: both new automations appear; blueprint is visible; no errors in Logbook or `home-assistant.log`
-11. **Wait 1 week** of real use on manually-tuned defaults
-12. **Create the two remote triggers** via `RemoteTrigger.create` with `enabled: false`
-13. **Smoke-test the nightly trigger** manually via `RemoteTrigger.run`
-14. **Smoke-test an approval cycle** (reply `apply` to Telegram, run morning trigger, confirm YAML edit + HA state update)
-15. **Enable both triggers** via `RemoteTrigger.update { enabled: true }`
+1. **Create helper files**: `input_numbers.yaml`, `input_datetimes.yaml`, `timers.yaml`, `counters.yaml`, `sensors.yaml`
+2. **Append template sensors** (`Meeting Room Temp`, `Mensa Temp`) to the existing `homeassistant/config/templates.yaml`
+3. **Update `configuration.yaml`** — add the 5 new includes (`input_number`, `input_datetime`, `timer`, `counter`, `sensor`)
+4. **Run HA config check** (per CLAUDE.md)
+5. **Restart HA** — helpers can't be referenced before they exist in the registry
+6. **Verify in HA UI**: all 10 global `shade_*` helpers exist at their default values; all 2 per-room snapshot helpers exist; 4 `input_datetime` helpers, 2 timers, 2 counters, and the 4 sensors (2 template + 2 derivative) all appear. Derivative sensors will read `unknown` for the first 30 min of accumulated history — that's expected.
+7. **Create the blueprint file** at `homeassistant/config/blueprints/automation/custom/intelligent_sun_shade.yaml`
+8. **Reload Blueprints** via HA UI (Settings → Automations & Scenes → Blueprints → Reload)
+9. **Add the forecast populator automation** to `automations.yaml`
+10. **Add the midnight counter reset automation** to `automations.yaml`
+11. **Reload Automations** via HA UI; verify both new automations appear
+12. **Manually trigger the forecast populator once** via dev tools → services → `automation.trigger` so the `shade_today_outdoor_max_forecast` helper gets a non-zero starting value
+13. **Delete `mensa_sun_shade`** from `automations.yaml`
+14. **Add the two blueprint instantiations** (Meeting Room + Mensa) to `automations.yaml`
+15. **Reload Automations** again; verify both blueprint instances appear, no errors in Logbook or `home-assistant.log`
+16. **Add the dashboard panel** to `homeassistant/config/dashboards/climate.yaml` and reload the dashboard in the UI
+17. **Wait 1 week** of real use on manually-tuned defaults; iterate on thresholds via the UI if needed
+18. **Create the two remote triggers** via `RemoteTrigger.create` with `enabled: false`
+19. **Smoke-test the nightly trigger** manually via `RemoteTrigger.run`
+20. **Smoke-test an approval cycle** — reply `apply EVAL-...` on Telegram, run the morning trigger manually, confirm YAML edit + HA state update
+21. **Enable both triggers** via `RemoteTrigger.update { enabled: true }`
+
+Each of steps 9, 10, 13, 14, and 16 is independently reloadable and independently reversible via `git revert`.
 
 ## Testing plan
 
@@ -818,18 +1006,22 @@ Order matters: helpers must exist before anything that references them.
 
 | Failure mode | Detection | Behavior | Recovery |
 |---|---|---|---|
-| HA REST API unreachable from remote agent | `curl` returns non-200 | Evaluator aborts the run, sends Telegram error, no state file changes | Next scheduled run retries |
-| Telegram API unreachable | `curl` to api.telegram.org fails | Report still written + committed; Telegram notification skipped | Next morning run's getUpdates catches up |
-| GitHub push fails (remote changes) | `git push` returns non-zero | Pull with rebase, retry push up to 3× | If still fails, abandon the run, send Telegram alert |
-| Telegram reply malformed (e.g., `apply EVAL` without token) | Regex doesn't match | Ignored silently | User re-sends cleanly; no silent auto-apply |
-| Token in reply doesn't match any pending entry | Not found in state file | Ignored; Telegram response says "unknown token" | User retries; pending entry unchanged |
-| HA restarts between YAML edit and `set_value` call | Not detectable from evaluator | YAML persists; HA reads on next start | No action needed; state converges |
-| Manual override counter race at midnight | Counter reset trigger overlaps with a manual override at 23:59:59 | One override may be lost; tolerable | Not critical; override signal is aggregate |
-| Blueprint template error at runtime | HA logs error in home-assistant.log | Automation continues, affected branch skipped | Check log; fix template |
-| Rate sensor `unknown` (fresh boot) | `sensor.<room>_temp_rate` state `unknown` | `numeric_state` trigger with numeric `above` won't fire on `unknown`; `for: 5m` debounce prevents false positives | Self-heals after 30 min |
-| Evaluator proposes change outside bounds | `set_value` rejected by HA | Morning trigger logs error, leaves pending entry, sends Telegram alert | User manually fixes or the evaluator's next run reconsiders |
-| Two pending entries for same input_number | Prevented by nightly's "replace existing" guardrail | N/A | N/A |
-| Concurrent runs (nightly + morning overlap) | `mode: single` on blueprint prevents HA-side races; triggers run in distinct cloud sessions | Each commits to its own file | Last push wins; rebase resolves |
+| HA REST API network error (5xx / timeout / connection refused) | `curl` returns non-2xx with network error | Evaluator aborts the run, sends Telegram error ("HA unreachable"), no state file changes | Next scheduled run retries automatically |
+| HA token revoked or expired (401) | `curl` returns HTTP 401 | Evaluator aborts the run, sends a distinct **high-priority** Telegram error ("HA token rejected — rotate LLT and update trigger prompts"), does not retry with the same token on following runs to avoid hammering | User creates new LLT in HA UI, updates both trigger prompts via `RemoteTrigger.update`, runs morning trigger manually to confirm |
+| Telegram API unreachable | `curl` to api.telegram.org fails | Report still written + committed; Telegram notification skipped; exit status logged in the committed report | Next morning run's `getUpdates` catches up; no data lost |
+| GitHub push fails (remote diverged) | `git push` returns non-zero | Pull with rebase, retry push up to 3× | If still fails, abandon the run, send Telegram alert with the error output |
+| Telegram reply malformed (e.g., `apply EVAL` without full token) | Regex doesn't match | Ignored silently (no auto-apply) | User re-sends cleanly |
+| Token in reply doesn't match any pending entry | Not found in state file | Morning trigger sends "unknown token" reply via Telegram | User retries with correct token; pending entry unchanged |
+| HA restarts between YAML edit and `set_value` call | Not detectable from evaluator | YAML edit persists to disk; HA picks it up on next full restart | No action needed; state converges on next reload |
+| HA cold-start mid-day (after `window_start` azimuth crossing already happened) | Not detectable without a startup trigger | Branch 7 (startup re-evaluation) fires on `homeassistant.start` and re-runs the close decision if conditions are met | Automatic; no action needed |
+| Manual override counter race at midnight | Counter reset trigger fires at 00:00:01 local, potentially overlapping with a manual override at 23:59:59 | At most one override event may be lost | Tolerable — override signal is aggregate across multiple days |
+| Blueprint template error at runtime | HA logs error in `home-assistant.log` | Automation skips the affected branch; other branches continue | Check log; fix template in blueprint |
+| Rate sensor `unknown` (fresh boot, < 30 min of data) | `sensor.<room>_temp_rate` state is `unknown` | `numeric_state` trigger with numeric `above:` won't fire on `unknown`; `for: "00:05:00"` debounce adds further protection | Self-heals after 30 min of data accumulation |
+| `weather.forecast_home` `forecast` attribute empty or absent | Forecast populator's `weather.get_forecasts` response has empty `forecast` list | Populator writes `0` to `shade_today_outdoor_max_forecast`; predictive close won't fire (0 is below any reasonable threshold); reactive override still protects the room | Check weather integration; manually set helper if weather is persistently broken |
+| Evaluator proposes change outside bounds | `input_number.set_value` rejected by HA | Morning trigger logs error, leaves pending entry in place, sends Telegram alert | Evaluator's guardrail prevents this; if it slips through, user fixes manually |
+| Two pending entries for same `input_number` | Prevented by nightly's "supersede in place" guardrail | N/A | N/A |
+| Concurrent runs (nightly + morning overlap) | `mode: single` on blueprint prevents HA-side races; triggers run in distinct cloud sessions but both push to the same repo | Last push wins; rebase-retry loop resolves | No special handling needed |
+| Clock drift between cron and HA local time | UTC cron doesn't follow DST | 1-hour shift in local time between CEST and CET is expected and documented | User tolerates; 22:00 vs 23:00 local is acceptable for both summer and winter |
 
 ## Rollback plan
 
@@ -875,3 +1067,90 @@ The hardest-to-rollback change is removing helper entities once automations refe
 ## Open questions
 
 None. All design decisions locked during brainstorming on 2026-04-07.
+
+## Glossary — every entity introduced by this spec
+
+One place, alphabetical, to cross-check that everything referenced exists exactly once.
+
+### Covers (pre-existing, not introduced — listed for reference)
+
+- `cover.shellypro2cover_34987a47c9b0_cover_0` — Meeting Room shade
+- `cover.shellypro2cover_2cbcbbb1ff9c_cover_0` — Mensa shade
+
+### Climate (pre-existing, not introduced)
+
+- `climate.meeting_room_climate`
+- `climate.mensa_climate`
+
+### Input numbers (new — `input_numbers.yaml`)
+
+- `input_number.mensa_forecast_max_at_window_start`
+- `input_number.meeting_room_forecast_max_at_window_start`
+- `input_number.shade_closed_position`
+- `input_number.shade_clouds_close_threshold`
+- `input_number.shade_clouds_open_threshold`
+- `input_number.shade_forecast_max_threshold`
+- `input_number.shade_grace_minutes`
+- `input_number.shade_open_position`
+- `input_number.shade_rate_threshold`
+- `input_number.shade_room_cap`
+- `input_number.shade_room_reopen`
+- `input_number.shade_today_outdoor_max_forecast` *(populator-owned, not tunable by evaluator)*
+
+### Input datetimes (new — `input_datetimes.yaml`)
+
+- `input_datetime.meeting_room_predictive_close_at`
+- `input_datetime.meeting_room_reactive_close_at`
+- `input_datetime.mensa_predictive_close_at`
+- `input_datetime.mensa_reactive_close_at`
+
+### Timers (new — `timers.yaml`)
+
+- `timer.shade_meeting_manual_grace`
+- `timer.shade_mensa_manual_grace`
+
+### Counters (new — `counters.yaml`)
+
+- `counter.meeting_room_manual_override_count`
+- `counter.mensa_manual_override_count`
+
+### Template sensors (new — append to `templates.yaml`)
+
+- `sensor.meeting_room_temp`
+- `sensor.mensa_temp`
+
+### Derivative sensors (new — `sensors.yaml`)
+
+- `sensor.meeting_room_temp_rate`
+- `sensor.mensa_temp_rate`
+
+### Automations (new — `automations.yaml`)
+
+- `sun_shade_forecast_populator` — populates `input_number.shade_today_outdoor_max_forecast`
+- `sun_shade_midnight_reset` — resets manual-override counters at 00:00:01
+- `sun_shade_meeting_room` — blueprint instantiation for Meeting Room
+- `sun_shade_mensa` — blueprint instantiation for Mensa
+
+### Automations (removed — `automations.yaml`)
+
+- `mensa_sun_shade` — replaced by `sun_shade_mensa`
+
+### Automations (unchanged — `automations.yaml`)
+
+- `cs_sun_shade` — out of scope, possible future migration
+
+### Blueprints (new)
+
+- `blueprints/automation/custom/intelligent_sun_shade.yaml`
+
+### Remote triggers (new — created via `RemoteTrigger`)
+
+- `sun-shade-evaluator-nightly` (cron `0 21 * * *`)
+- `sun-shade-evaluator-morning` (cron `0 5 * * *`)
+
+### Files (new — evaluator outputs)
+
+- `homeassistant/eval-state.json`
+- `docs/sun-shade-eval/YYYY-MM-DD.md` (written daily)
+- `docs/sun-shade-eval/applied.log`
+- `docs/sun-shade-eval/ignored.log`
