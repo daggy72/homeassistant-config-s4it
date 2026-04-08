@@ -1,0 +1,20 @@
+# Derivative sensors for room-temperature rate of rise.
+# Sources are the template sensors defined in templates.yaml (meeting_room_temp, mensa_temp)
+# which expose climate.*.current_temperature as plain numeric sensors.
+# See docs/superpowers/specs/2026-04-07-intelligent-sun-shade-design.md §Component 2.
+
+- platform: derivative
+  source: sensor.meeting_room_temp
+  name: "Meeting Room Temp Rate"
+  unique_id: meeting_room_temp_rate
+  time_window: "00:30:00"
+  unit_time: h
+  round: 2
+
+- platform: derivative
+  source: sensor.mensa_temp
+  name: "Mensa Temp Rate"
+  unique_id: mensa_temp_rate
+  time_window: "00:30:00"
+  unit_time: h
+  round: 2
