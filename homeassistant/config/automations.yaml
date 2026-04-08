@@ -475,3 +475,22 @@
         entity_id:
           - counter.meeting_room_manual_override_count
           - counter.mensa_manual_override_count
+
+- id: sun_shade_meeting_room
+  alias: Sun Shade — Meeting Room
+  description: Intelligent sun shade for the Meeting Room (ESE, azimuth 90–150°)
+  use_blueprint:
+    path: custom/intelligent_sun_shade.yaml
+    input:
+      cover_entity: cover.shellypro2cover_34987a47c9b0_cover_0
+      room_climate_entity: climate.meeting_room_climate
+      rate_sensor_entity: sensor.meeting_room_temp_rate
+      manual_grace_timer: timer.shade_meeting_manual_grace
+      manual_override_counter: counter.meeting_room_manual_override_count
+      predictive_close_dt: input_datetime.meeting_room_predictive_close_at
+      reactive_close_dt: input_datetime.meeting_room_reactive_close_at
+      forecast_snapshot: input_number.meeting_room_forecast_max_at_window_start
+      sun_azimuth_min: 90
+      sun_azimuth_max: 150
+      sun_elevation_min: 15
+      room_label: "Meeting Room"
