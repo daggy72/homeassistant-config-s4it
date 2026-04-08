@@ -422,3 +422,39 @@
           entity_id: cover.shellypro2cover_2cbcbbb1ff9c_cover_0
         data:
           position: 100
+
+- id: sun_shade_forecast_populator
+  alias: Sun Shade — Populate today's outdoor max forecast
+  description: >
+    Calls weather.get_forecasts (the modern replacement for the deprecated
+    forecast attribute) and writes today's max temperature into
+    input_number.shade_today_outdoor_max_forecast so the blueprint can
+    read it from a simple numeric_state condition.
+  mode: single
+  triggers:
+    - trigger: homeassistant
+      event: start
+    - trigger: time
+      at: "06:00:00"
+    - trigger: time_pattern
+      minutes: 5
+  actions:
+    - action: weather.get_forecasts
+      target:
+        entity_id: weather.forecast_home
+      data:
+        type: daily
+      response_variable: forecast_response
+    - variables:
+        today_max: >
+          {% set fc = forecast_response['weather.forecast_home'].forecast %}
+          {% if fc and fc | length > 0 %}
+            {{ fc[0].temperature | float(0) }}
+          {% else %}
+            0
+          {% endif %}
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.shade_today_outdoor_max_forecast
+      data:
+        value: "{{ today_max }}"
