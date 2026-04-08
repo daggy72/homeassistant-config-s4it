@@ -132,6 +132,61 @@ views:
           - entity: cover.shellypro2cover_2cbcbbb1ff9c_cover_0
             name: Tende Mensa
 
+      - type: entities
+        title: Sun Shade — Thresholds & Activity
+        state_color: true
+        entities:
+          - type: section
+            label: Global thresholds
+          - entity: input_number.shade_forecast_max_threshold
+            name: Forecast trigger
+          - entity: input_number.shade_clouds_close_threshold
+            name: Clouds (close)
+          - entity: input_number.shade_clouds_open_threshold
+            name: Clouds (open)
+          - entity: input_number.shade_room_cap
+            name: Room cap
+          - entity: input_number.shade_rate_threshold
+            name: Rate of rise
+          - entity: input_number.shade_room_reopen
+            name: Room re-open
+          - entity: input_number.shade_closed_position
+            name: Closed position
+          - entity: input_number.shade_open_position
+            name: Open position
+          - entity: input_number.shade_grace_minutes
+            name: Grace (minutes)
+          - type: section
+            label: Today
+          - entity: input_number.shade_today_outdoor_max_forecast
+            name: Forecast max today
+          - entity: input_number.meeting_room_forecast_max_at_window_start
+            name: Meeting — forecast at window start
+          - entity: input_number.mensa_forecast_max_at_window_start
+            name: Mensa — forecast at window start
+          - type: section
+            label: Manual overrides (today)
+          - entity: counter.meeting_room_manual_override_count
+            name: Meeting
+          - entity: counter.mensa_manual_override_count
+            name: Mensa
+          - type: section
+            label: Last close events
+          - entity: input_datetime.meeting_room_predictive_close_at
+            name: Meeting — predictive
+          - entity: input_datetime.meeting_room_reactive_close_at
+            name: Meeting — reactive
+          - entity: input_datetime.mensa_predictive_close_at
+            name: Mensa — predictive
+          - entity: input_datetime.mensa_reactive_close_at
+            name: Mensa — reactive
+          - type: section
+            label: Grace timers
+          - entity: timer.shade_meeting_manual_grace
+            name: Meeting
+          - entity: timer.shade_mensa_manual_grace
+            name: Mensa
+
       # --- Summer Dynamic Temps (only visible in summer) ---
       - type: conditional
         conditions:
