@@ -1,0 +1,125 @@
+# Global sun-shade threshold helpers — tunable by the evaluator within bounds.
+# See docs/superpowers/specs/2026-04-07-intelligent-sun-shade-design.md §Component 2.
+
+shade_forecast_max_threshold:
+  name: "Shade — Forecast Max Threshold"
+  icon: mdi:thermometer-alert
+  initial: 22.0
+  min: 18
+  max: 26
+  step: 0.5
+  unit_of_measurement: "°C"
+  mode: box
+
+shade_clouds_close_threshold:
+  name: "Shade — Clouds (close)"
+  icon: mdi:cloud-outline
+  initial: 50
+  min: 20
+  max: 80
+  step: 5
+  unit_of_measurement: "%"
+  mode: box
+
+shade_clouds_open_threshold:
+  name: "Shade — Clouds (open)"
+  icon: mdi:cloud
+  initial: 70
+  min: 40
+  max: 90
+  step: 5
+  unit_of_measurement: "%"
+  mode: box
+
+shade_room_cap:
+  name: "Shade — Room Cap"
+  icon: mdi:thermometer-high
+  initial: 25.0
+  min: 23
+  max: 28
+  step: 0.5
+  unit_of_measurement: "°C"
+  mode: box
+
+shade_rate_threshold:
+  name: "Shade — Rate Threshold"
+  icon: mdi:chart-line-variant
+  initial: 0.6
+  min: 0.3
+  max: 1.2
+  step: 0.1
+  unit_of_measurement: "°C/h"
+  mode: box
+
+shade_room_reopen:
+  name: "Shade — Room Re-open"
+  icon: mdi:thermometer-low
+  initial: 23.0
+  min: 21
+  max: 25
+  step: 0.5
+  unit_of_measurement: "°C"
+  mode: box
+
+shade_closed_position:
+  name: "Shade — Closed Position"
+  icon: mdi:window-shutter
+  initial: 30
+  min: 0
+  max: 50
+  step: 5
+  unit_of_measurement: "%"
+  mode: box
+
+shade_open_position:
+  name: "Shade — Open Position"
+  icon: mdi:window-shutter-open
+  initial: 100
+  min: 50
+  max: 100
+  step: 5
+  unit_of_measurement: "%"
+  mode: box
+
+shade_grace_minutes:
+  name: "Shade — Manual Grace (minutes)"
+  icon: mdi:timer-outline
+  initial: 30
+  min: 10
+  max: 59
+  step: 1
+  unit_of_measurement: "min"
+  mode: box
+
+# Populator-owned — NOT user-tunable, overwritten hourly by sun_shade_forecast_populator.
+shade_today_outdoor_max_forecast:
+  name: "Shade — Today's Forecast Max"
+  icon: mdi:weather-sunny-alert
+  initial: 0
+  min: -20
+  max: 50
+  step: 0.1
+  unit_of_measurement: "°C"
+  mode: box
+
+# Per-room snapshots — written by the blueprint at the moment of predictive close,
+# read by the evaluator for predicted-vs-actual comparison.
+meeting_room_forecast_max_at_window_start:
+  name: "Meeting Room — Forecast at window start"
+  icon: mdi:weather-sunny
+  initial: 0
+  min: -20
+  max: 50
+  step: 0.1
+  unit_of_measurement: "°C"
+  mode: box
+
+mensa_forecast_max_at_window_start:
+  name: "Mensa — Forecast at window start"
+  icon: mdi:weather-sunny
+  initial: 0
+  min: -20
+  max: 50
+  step: 0.1
+  unit_of_measurement: "°C"
+  mode: box
