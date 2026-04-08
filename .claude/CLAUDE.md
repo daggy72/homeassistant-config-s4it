@@ -104,11 +104,11 @@ Two generations of fancoil hardware coexist, both driven by Versatile Thermostat
 
 | Zone | Climate Entity | Blueprint Automation |
 |------|---------------|---------------------|
-| Office (MT + Projects) | `climate.mt_climate`, `climate.projects_1` | Office Climate Schedule |
-| Customer Service | `climate.cs_climate` | CS Climate Schedule |
-| Meeting Room | `climate.meeting_room_climate` | Meeting Room Climate Schedule |
-| Open Space | `climate.open_space_climate` | Open Space Climate Schedule |
-| Mensa | `climate.mensa_climate` | Mensa Climate Schedule |
+| Office (MT + Projects) | `climate.projects_1`, `climate.projects_2` | Office Climate Schedule |
+| Customer Service | `climate.fancoil_cs` | CS Climate Schedule |
+| Meeting Room | `climate.fancoil_meeting` | Meeting Room Climate Schedule |
+| Open Space | `climate.fancoil_openspace` | Open Space Climate Schedule |
+| Mensa | `climate.climate_mensa` | Mensa Climate Schedule |
 | Tania | `climate.fancoil_tania` | — |
 | Reception | `climate.fancoil_reception` | — |
 | Entrance | `climate.fancoil_entrance` | — |
