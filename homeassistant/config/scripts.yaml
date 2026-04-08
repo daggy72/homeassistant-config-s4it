@@ -1,0 +1,20 @@
+boost_zone:
+  alias: "Boost Zone (60 min)"
+  description: >
+    Activate boost preset on a climate entity for 60 minutes.
+    Auto-reverts to previous preset when time expires or when
+    the boost_auto_revert automation detects target reached.
+  fields:
+    zone:
+      description: "Climate entity to boost"
+      example: "climate.fancoil_dagmar"
+      selector:
+        entity:
+          domain: climate
+  sequence:
+    - action: versatile_thermostat.set_timed_preset
+      target:
+        entity_id: "{{ zone }}"
+      data:
+        preset: boost
+        duration_minutes: 60

@@ -85,6 +85,7 @@
       - climate.fancoil_openspace
       - climate.fancoil_entrance
       - climate.climate_mensa
+      - climate.projects_2
       new_season: "{{ states('input_select.climate_season') }}"
   - action: climate.set_hvac_mode
     target:
@@ -151,6 +152,7 @@
       - climate.fancoil_openspace
       - climate.fancoil_entrance
       - climate.climate_mensa
+      - climate.projects_2
   - repeat:
       for_each: "{{ office_zones }}"
       sequence:
@@ -210,6 +212,7 @@
       - climate.fancoil_openspace
       - climate.fancoil_entrance
       - climate.climate_mensa
+      - climate.projects_2
       comfort_time: '08:00:00'
       eco_time: '17:00:00'
       frost_time: '19:00:00'
@@ -271,6 +274,62 @@
         data:
           preset_mode: comfort
   mode: single
+- id: boost_auto_revert
+  alias: Boost Auto-Revert
+  description: >
+    When a user sets any VT to boost via the dashboard thermostat card,
+    this automation converts it to a 60-minute timed preset and monitors
+    for target temperature reached. Reverts to scheduled preset on
+    whichever comes first: temp reached or 60 minutes elapsed.
+  mode: parallel
+  max: 9
+  triggers:
+  - trigger: state
+    entity_id:
+    - climate.fancoil_dagmar
+    - climate.fancoil_tania
+    - climate.projects_1
+    - climate.fancoil_cs
+    - climate.fancoil_reception
+    - climate.fancoil_meeting
+    - climate.fancoil_openspace
+    - climate.fancoil_entrance
+    - climate.climate_mensa
+    - climate.projects_2
+    attribute: preset_mode
+    to: boost
+  actions:
+  - variables:
+      vt: "{{ trigger.entity_id }}"
+  - action: versatile_thermostat.set_timed_preset
+    target:
+      entity_id: "{{ vt }}"
+    data:
+      preset: boost
+      duration_minutes: 60
+  - repeat:
+      while:
+      - condition: template
+        value_template: >
+          {{ state_attr(vt, 'preset_mode') == 'boost' }}
+      sequence:
+      - delay:
+          seconds: 30
+      - condition: template
+        value_template: >
+          {% set current = state_attr(vt, 'current_temperature') | float(0) %}
+          {% set target = state_attr(vt, 'temperature') | float(0) %}
+          {% set mode = states(vt) %}
+          {% if mode == 'heat' %}
+            {{ current >= target }}
+          {% elif mode == 'cool' %}
+            {{ current <= target }}
+          {% else %}
+            true
+          {% endif %}
+      - action: versatile_thermostat.cancel_timed_preset
+        target:
+          entity_id: "{{ vt }}"
 - id: cs_sun_shade
   alias: CS Sun Shade (Morning)
   description: >
