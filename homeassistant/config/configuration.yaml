@@ -35,6 +35,13 @@ input_select:
 # --- Template entities (fancoil number → Shelly 0-10V brightness) ---
 template: !include templates.yaml
 
+# --- Sun shade helpers (see docs/superpowers/specs/2026-04-07-intelligent-sun-shade-design.md) ---
+input_number: !include input_numbers.yaml
+input_datetime: !include input_datetimes.yaml
+timer: !include timers.yaml
+counter: !include counters.yaml
+sensor: !include sensors.yaml
+
 # --- Panel iframes ---
 panel_iframe:
   esphome:
