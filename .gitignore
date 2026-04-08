@@ -59,6 +59,9 @@ Thumbs.db
 __pycache__/
 *.pyc
 
+# Worktrees
+.worktrees/
+
 # Environment
 .env
 .env.dev
