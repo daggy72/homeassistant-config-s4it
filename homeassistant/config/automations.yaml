@@ -458,3 +458,20 @@
         entity_id: input_number.shade_today_outdoor_max_forecast
       data:
         value: "{{ today_max }}"
+
+- id: sun_shade_midnight_reset
+  alias: Sun Shade — Midnight counter reset
+  description: >
+    Resets per-room manual-override counters at 00:00:01 so the nightly
+    evaluator (which runs at 21:00 UTC, before local midnight) sees the
+    full day's counts, and the next day starts fresh.
+  mode: single
+  triggers:
+    - trigger: time
+      at: "00:00:01"
+  actions:
+    - action: counter.reset
+      target:
+        entity_id:
+          - counter.meeting_room_manual_override_count
+          - counter.mensa_manual_override_count
