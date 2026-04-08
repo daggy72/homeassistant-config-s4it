@@ -461,7 +461,7 @@
     path: custom/intelligent_sun_shade.yaml
     input:
       cover_entity: cover.shellypro2cover_34987a47c9b0_cover_0
-      room_climate_entity: climate.meeting_room_climate
+      room_climate_entity: climate.fancoil_meeting
       rate_sensor_entity: sensor.meeting_room_temp_rate
       manual_grace_timer: timer.shade_meeting_manual_grace
       manual_override_counter: counter.meeting_room_manual_override_count
@@ -480,7 +480,7 @@
     path: custom/intelligent_sun_shade.yaml
     input:
       cover_entity: cover.shellypro2cover_2cbcbbb1ff9c_cover_0
-      room_climate_entity: climate.mensa_climate
+      room_climate_entity: climate.climate_mensa
       rate_sensor_entity: sensor.mensa_temp_rate
       manual_grace_timer: timer.shade_mensa_manual_grace
       manual_override_counter: counter.mensa_manual_override_count
