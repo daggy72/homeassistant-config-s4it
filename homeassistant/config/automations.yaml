@@ -494,3 +494,22 @@
       sun_azimuth_max: 150
       sun_elevation_min: 15
       room_label: "Meeting Room"
+
+- id: sun_shade_mensa
+  alias: Sun Shade — Mensa
+  description: Intelligent sun shade for Mensa (SSW, azimuth 170–240°)
+  use_blueprint:
+    path: custom/intelligent_sun_shade.yaml
+    input:
+      cover_entity: cover.shellypro2cover_2cbcbbb1ff9c_cover_0
+      room_climate_entity: climate.mensa_climate
+      rate_sensor_entity: sensor.mensa_temp_rate
+      manual_grace_timer: timer.shade_mensa_manual_grace
+      manual_override_counter: counter.mensa_manual_override_count
+      predictive_close_dt: input_datetime.mensa_predictive_close_at
+      reactive_close_dt: input_datetime.mensa_reactive_close_at
+      forecast_snapshot: input_number.mensa_forecast_max_at_window_start
+      sun_azimuth_min: 170
+      sun_azimuth_max: 240
+      sun_elevation_min: 15
+      room_label: "Mensa"
