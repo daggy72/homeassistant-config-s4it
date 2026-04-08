@@ -1,0 +1,23 @@
+meeting_room_predictive_close_at:
+  name: "Meeting Room — Last predictive close"
+  icon: mdi:clock-outline
+  has_date: true
+  has_time: true
+
+meeting_room_reactive_close_at:
+  name: "Meeting Room — Last reactive close"
+  icon: mdi:clock-alert-outline
+  has_date: true
+  has_time: true
+
+mensa_predictive_close_at:
+  name: "Mensa — Last predictive close"
+  icon: mdi:clock-outline
+  has_date: true
+  has_time: true
+
+mensa_reactive_close_at:
+  name: "Mensa — Last reactive close"
+  icon: mdi:clock-alert-outline
+  has_date: true
+  has_time: true

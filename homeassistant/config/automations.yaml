@@ -400,84 +400,94 @@
           entity_id: cover.shellypro2cover_34987a47c9b0_cover_1
         data:
           position: 100
-- id: mensa_sun_shade
-  alias: Mensa Sun Shade (Afternoon)
+
+- id: sun_shade_forecast_populator
+  alias: Sun Shade — Populate today's outdoor max forecast
   description: >
-    Lower Mensa shade to 30% when sun is in SSW range (170-240°) on sunny days.
-    Also triggers when clouds clear during the SSW window.
-    Raises when sun exits 240°, at 17:00, or if clouds roll in.
+    Calls weather.get_forecasts (the modern replacement for the deprecated
+    forecast attribute) and writes today's max temperature into
+    input_number.shade_today_outdoor_max_forecast so the blueprint can
+    read it from a simple numeric_state condition.
   mode: single
   triggers:
-  - trigger: numeric_state
-    entity_id: sun.sun
-    attribute: azimuth
-    above: 170
-    id: sun_check
-  - trigger: numeric_state
-    entity_id: weather.forecast_home
-    attribute: cloud_coverage
-    below: 50
-    id: sun_check
-  - trigger: numeric_state
-    entity_id: sun.sun
-    attribute: azimuth
-    above: 240
-    id: sun_exits_ssw
-  - trigger: time
-    at: '17:00:00'
-    id: end_of_day
-  - trigger: numeric_state
-    entity_id: weather.forecast_home
-    attribute: cloud_coverage
-    above: 70
-    id: cloudy
+    - trigger: homeassistant
+      event: start
+    - trigger: time
+      at: "06:00:00"
+    - trigger: time_pattern
+      minutes: 5
   actions:
-  - choose:
-    - conditions:
-      - condition: trigger
-        id: sun_check
-      - condition: numeric_state
-        entity_id: sun.sun
-        attribute: azimuth
-        above: 170
-      - condition: numeric_state
-        entity_id: sun.sun
-        attribute: azimuth
-        below: 240
-      - condition: numeric_state
+    - action: weather.get_forecasts
+      target:
         entity_id: weather.forecast_home
-        attribute: cloud_coverage
-        below: 50
-      - condition: numeric_state
-        entity_id: sun.sun
-        attribute: elevation
-        above: 15
-      - condition: numeric_state
-        entity_id: cover.shellypro2cover_2cbcbbb1ff9c_cover_0
-        attribute: current_position
-        above: 50
-      sequence:
-      - action: cover.set_cover_position
-        target:
-          entity_id: cover.shellypro2cover_2cbcbbb1ff9c_cover_0
-        data:
-          position: 30
-    - conditions:
-      - condition: or
-        conditions:
-        - condition: trigger
-          id: sun_exits_ssw
-        - condition: trigger
-          id: end_of_day
-        - condition: trigger
-          id: cloudy
-      - condition: numeric_state
-        entity_id: cover.shellypro2cover_2cbcbbb1ff9c_cover_0
-        attribute: current_position
-        below: 50
-      sequence:
-      - action: cover.set_cover_position
-        target:
-          entity_id: cover.shellypro2cover_2cbcbbb1ff9c_cover_0
-        data:
-          position: 100
+      data:
+        type: daily
+      response_variable: forecast_response
+    - variables:
+        today_max: >
+          {% set fc = forecast_response['weather.forecast_home'].forecast %}
+          {% if fc and fc | length > 0 %}
+            {{ fc[0].temperature | float(0) }}
+          {% else %}
+            0
+          {% endif %}
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.shade_today_outdoor_max_forecast
+      data:
+        value: "{{ today_max }}"
+
+- id: sun_shade_midnight_reset
+  alias: Sun Shade — Midnight counter reset
+  description: >
+    Resets per-room manual-override counters at 00:00:01 so the nightly
+    evaluator (which runs at 21:00 UTC, before local midnight) sees the
+    full day's counts, and the next day starts fresh.
+  mode: single
+  triggers:
+    - trigger: time
+      at: "00:00:01"
+  actions:
+    - action: counter.reset
+      target:
+        entity_id:
+          - counter.meeting_room_manual_override_count
+          - counter.mensa_manual_override_count
+
+- id: sun_shade_meeting_room
+  alias: Sun Shade — Meeting Room
+  description: Intelligent sun shade for the Meeting Room (ESE, azimuth 90–150°)
+  use_blueprint:
+    path: custom/intelligent_sun_shade.yaml
+    input:
+      cover_entity: cover.shellypro2cover_34987a47c9b0_cover_0
+      room_climate_entity: climate.meeting_room_climate
+      rate_sensor_entity: sensor.meeting_room_temp_rate
+      manual_grace_timer: timer.shade_meeting_manual_grace
+      manual_override_counter: counter.meeting_room_manual_override_count
+      predictive_close_dt: input_datetime.meeting_room_predictive_close_at
+      reactive_close_dt: input_datetime.meeting_room_reactive_close_at
+      forecast_snapshot: input_number.meeting_room_forecast_max_at_window_start
+      sun_azimuth_min: 90
+      sun_azimuth_max: 150
+      sun_elevation_min: 15
+      room_label: "Meeting Room"
+
+- id: sun_shade_mensa
+  alias: Sun Shade — Mensa
+  description: Intelligent sun shade for Mensa (SSW, azimuth 170–240°)
+  use_blueprint:
+    path: custom/intelligent_sun_shade.yaml
+    input:
+      cover_entity: cover.shellypro2cover_2cbcbbb1ff9c_cover_0
+      room_climate_entity: climate.mensa_climate
+      rate_sensor_entity: sensor.mensa_temp_rate
+      manual_grace_timer: timer.shade_mensa_manual_grace
+      manual_override_counter: counter.mensa_manual_override_count
+      predictive_close_dt: input_datetime.mensa_predictive_close_at
+      reactive_close_dt: input_datetime.mensa_reactive_close_at
+      forecast_snapshot: input_number.mensa_forecast_max_at_window_start
+      sun_azimuth_min: 170
+      sun_azimuth_max: 240
+      sun_elevation_min: 15
+      room_label: "Mensa"

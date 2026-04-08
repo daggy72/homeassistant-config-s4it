@@ -1,0 +1,11 @@
+shade_meeting_manual_grace:
+  name: "Shade Meeting — Manual grace"
+  icon: mdi:timer-sand
+  duration: "00:30:00"
+  restore: true
+
+shade_mensa_manual_grace:
+  name: "Shade Mensa — Manual grace"
+  icon: mdi:timer-sand
+  duration: "00:30:00"
+  restore: true

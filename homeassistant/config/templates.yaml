@@ -585,3 +585,21 @@
       icon: mdi:thermometer-chevron-down
       device_class: temperature
       state_class: measurement
+
+    - name: "Meeting Room Temp"
+      unique_id: meeting_room_temp
+      state: "{{ state_attr('climate.meeting_room_climate', 'current_temperature') }}"
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+      availability: >
+        {{ state_attr('climate.meeting_room_climate', 'current_temperature') is not none }}
+
+    - name: "Mensa Temp"
+      unique_id: mensa_temp
+      state: "{{ state_attr('climate.mensa_climate', 'current_temperature') }}"
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+      availability: >
+        {{ state_attr('climate.mensa_climate', 'current_temperature') is not none }}

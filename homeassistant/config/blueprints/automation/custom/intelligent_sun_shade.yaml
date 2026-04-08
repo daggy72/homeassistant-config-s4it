@@ -1,0 +1,477 @@
+blueprint:
+  name: Intelligent Sun Shade
+  description: >
+    Hybrid sun-shade automation with predictive + reactive logic.
+    Predictive close at sun-window start if today's forecast max is high
+    and skies are clear. Reactive override closes if room temperature
+    rises above the cap or faster than the rate threshold. Manual
+    overrides start a grace timer during which the automation backs off.
+    Startup re-evaluation handles HA cold-start mid-window.
+
+    See docs/superpowers/specs/2026-04-07-intelligent-sun-shade-design.md
+    for the full decision matrix and rationale.
+  domain: automation
+  author: Dagmar @ Salesupply Italy
+  input:
+    cover_entity:
+      name: Cover
+      description: The window shade to control
+      selector:
+        entity:
+          domain: cover
+
+    room_climate_entity:
+      name: Room Climate Entity
+      description: Climate entity whose current_temperature represents the room
+      selector:
+        entity:
+          domain: climate
+
+    rate_sensor_entity:
+      name: Room Temperature Rate Sensor
+      description: Derivative sensor exposing room temperature rate in °C/h
+      selector:
+        entity:
+          domain: sensor
+
+    manual_grace_timer:
+      name: Manual Grace Timer
+      description: Timer that disables the automation after a manual cover move
+      selector:
+        entity:
+          domain: timer
+
+    manual_override_counter:
+      name: Manual Override Counter
+      description: Counter incremented on every manual cover move
+      selector:
+        entity:
+          domain: counter
+
+    predictive_close_dt:
+      name: Predictive Close Datetime
+      description: input_datetime to record the last predictive close timestamp
+      selector:
+        entity:
+          domain: input_datetime
+
+    reactive_close_dt:
+      name: Reactive Close Datetime
+      description: input_datetime to record the last reactive close timestamp
+      selector:
+        entity:
+          domain: input_datetime
+
+    forecast_snapshot:
+      name: Forecast Snapshot Helper
+      description: input_number to snapshot today's forecast max at window start
+      selector:
+        entity:
+          domain: input_number
+
+    sun_azimuth_min:
+      name: Sun Window Start Azimuth
+      description: Sun azimuth at which the window begins (°)
+      default: 90
+      selector:
+        number:
+          min: 0
+          max: 360
+          step: 1
+          unit_of_measurement: "°"
+
+    sun_azimuth_max:
+      name: Sun Window End Azimuth
+      description: Sun azimuth at which the window ends (°)
+      default: 150
+      selector:
+        number:
+          min: 0
+          max: 360
+          step: 1
+          unit_of_measurement: "°"
+
+    sun_elevation_min:
+      name: Minimum Sun Elevation
+      description: Below this elevation the automation does not act (°)
+      default: 15
+      selector:
+        number:
+          min: 0
+          max: 90
+          step: 1
+          unit_of_measurement: "°"
+
+    room_label:
+      name: Room Label
+      description: Human-readable room name for Logbook messages
+      selector:
+        text:
+
+mode: single
+max_exceeded: silent
+
+# Expose inputs as Jinja variables so templates inside actions can reference them.
+variables:
+  cover_entity: !input cover_entity
+  room_climate_entity: !input room_climate_entity
+  rate_sensor_entity: !input rate_sensor_entity
+  manual_grace_timer: !input manual_grace_timer
+  manual_override_counter: !input manual_override_counter
+  predictive_close_dt: !input predictive_close_dt
+  reactive_close_dt: !input reactive_close_dt
+  forecast_snapshot: !input forecast_snapshot
+  sun_azimuth_min: !input sun_azimuth_min
+  sun_azimuth_max: !input sun_azimuth_max
+  sun_elevation_min: !input sun_elevation_min
+  room_label: !input room_label
+
+triggers:
+  - trigger: numeric_state
+    entity_id: sun.sun
+    attribute: azimuth
+    above: !input sun_azimuth_min
+    id: window_start
+
+  - trigger: numeric_state
+    entity_id: sun.sun
+    attribute: azimuth
+    above: !input sun_azimuth_max
+    id: window_end
+
+  - trigger: numeric_state
+    entity_id: sun.sun
+    attribute: elevation
+    below: !input sun_elevation_min
+    id: elevation_drop
+
+  - trigger: numeric_state
+    entity_id: weather.forecast_home
+    attribute: cloud_coverage
+    below: input_number.shade_clouds_close_threshold
+    id: clear_sky
+
+  - trigger: numeric_state
+    entity_id: weather.forecast_home
+    attribute: cloud_coverage
+    above: input_number.shade_clouds_open_threshold
+    id: cloudy
+
+  - trigger: numeric_state
+    entity_id: !input room_climate_entity
+    attribute: current_temperature
+    above: input_number.shade_room_cap
+    for: "00:05:00"
+    id: room_hot
+
+  - trigger: numeric_state
+    entity_id: !input rate_sensor_entity
+    above: input_number.shade_rate_threshold
+    for: "00:05:00"
+    id: rate_high
+
+  - trigger: numeric_state
+    entity_id: !input room_climate_entity
+    attribute: current_temperature
+    below: input_number.shade_room_reopen
+    id: room_cool
+
+  - trigger: state
+    entity_id: !input cover_entity
+    id: manual_override
+
+  - trigger: event
+    event_type: timer.finished
+    event_data:
+      entity_id: !input manual_grace_timer
+    id: grace_expired
+
+  - trigger: state
+    entity_id: input_select.climate_season
+    id: season_change
+
+  - trigger: homeassistant
+    event: start
+    id: startup
+
+conditions:
+  - condition: not
+    conditions:
+      - condition: state
+        entity_id: input_select.climate_season
+        state: winter
+
+actions:
+  - choose:
+
+      # --- Branch 1: Manual override detected ---
+      - conditions:
+          - condition: trigger
+            id: manual_override
+          - condition: template
+            value_template: >
+              {{ trigger.to_state is not none
+                 and trigger.to_state.context.user_id is not none }}
+        sequence:
+          - action: counter.increment
+            target:
+              entity_id: !input manual_override_counter
+          - action: timer.start
+            target:
+              entity_id: !input manual_grace_timer
+            data:
+              duration: >-
+                00:{{ '%02d' | format(states('input_number.shade_grace_minutes') | int) }}:00
+          - action: logbook.log
+            data:
+              name: "Intelligent Sun Shade"
+              message: "{{ room_label }}: manual override detected, grace timer started"
+
+      # --- Branch 2: Predictive close at window start ---
+      - conditions:
+          - condition: trigger
+            id: window_start
+          - condition: state
+            entity_id: !input manual_grace_timer
+            state: idle
+          - condition: numeric_state
+            entity_id: sun.sun
+            attribute: elevation
+            above: !input sun_elevation_min
+          - condition: numeric_state
+            entity_id: input_number.shade_today_outdoor_max_forecast
+            above: input_number.shade_forecast_max_threshold
+          - condition: numeric_state
+            entity_id: weather.forecast_home
+            attribute: cloud_coverage
+            below: input_number.shade_clouds_close_threshold
+          - condition: numeric_state
+            entity_id: !input cover_entity
+            attribute: current_position
+            above: 50
+        sequence:
+          - action: input_number.set_value
+            target:
+              entity_id: !input forecast_snapshot
+            data:
+              value: "{{ states('input_number.shade_today_outdoor_max_forecast') | float }}"
+          - action: cover.set_cover_position
+            target:
+              entity_id: !input cover_entity
+            data:
+              position: "{{ states('input_number.shade_closed_position') | int }}"
+          - action: input_datetime.set_datetime
+            target:
+              entity_id: !input predictive_close_dt
+            data:
+              datetime: "{{ now().isoformat() }}"
+          - action: logbook.log
+            data:
+              name: "Intelligent Sun Shade"
+              message: >-
+                {{ room_label }}: predictive close
+                (forecast max {{ states('input_number.shade_today_outdoor_max_forecast') }}°C,
+                clouds {{ state_attr('weather.forecast_home', 'cloud_coverage') }}%)
+
+      # --- Branch 3: Reactive override (room hot or rising fast) ---
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: room_hot
+              - condition: trigger
+                id: rate_high
+          - condition: state
+            entity_id: !input manual_grace_timer
+            state: idle
+          - condition: numeric_state
+            entity_id: sun.sun
+            attribute: azimuth
+            above: !input sun_azimuth_min
+          - condition: numeric_state
+            entity_id: sun.sun
+            attribute: azimuth
+            below: !input sun_azimuth_max
+          - condition: numeric_state
+            entity_id: sun.sun
+            attribute: elevation
+            above: !input sun_elevation_min
+          - condition: numeric_state
+            entity_id: !input cover_entity
+            attribute: current_position
+            above: 50
+        sequence:
+          - action: cover.set_cover_position
+            target:
+              entity_id: !input cover_entity
+            data:
+              position: "{{ states('input_number.shade_closed_position') | int }}"
+          - action: input_datetime.set_datetime
+            target:
+              entity_id: !input reactive_close_dt
+            data:
+              datetime: "{{ now().isoformat() }}"
+          - action: logbook.log
+            data:
+              name: "Intelligent Sun Shade"
+              message: >-
+                {{ room_label }}: reactive close
+                (room {{ state_attr(room_climate_entity, 'current_temperature') }}°C,
+                rate {{ states(rate_sensor_entity) }}°C/h)
+
+      # --- Branch 4: Re-open (cool + cloudy, or very cloudy) ---
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: room_cool
+              - condition: trigger
+                id: cloudy
+          - condition: numeric_state
+            entity_id: !input cover_entity
+            attribute: current_position
+            below: 50
+          - condition: or
+            conditions:
+              - condition: and
+                conditions:
+                  - condition: numeric_state
+                    entity_id: !input room_climate_entity
+                    attribute: current_temperature
+                    below: input_number.shade_room_reopen
+                  - condition: numeric_state
+                    entity_id: weather.forecast_home
+                    attribute: cloud_coverage
+                    above: input_number.shade_clouds_close_threshold
+              - condition: numeric_state
+                entity_id: weather.forecast_home
+                attribute: cloud_coverage
+                above: input_number.shade_clouds_open_threshold
+        sequence:
+          - action: cover.set_cover_position
+            target:
+              entity_id: !input cover_entity
+            data:
+              position: "{{ states('input_number.shade_open_position') | int }}"
+          - action: logbook.log
+            data:
+              name: "Intelligent Sun Shade"
+              message: "{{ room_label }}: re-opened (cool + cloudy)"
+
+      # --- Branch 5: Window end (sun out of azimuth / elevation drop) ---
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: window_end
+              - condition: trigger
+                id: elevation_drop
+          - condition: numeric_state
+            entity_id: !input cover_entity
+            attribute: current_position
+            below: 50
+        sequence:
+          - action: cover.set_cover_position
+            target:
+              entity_id: !input cover_entity
+            data:
+              position: "{{ states('input_number.shade_open_position') | int }}"
+          - action: logbook.log
+            data:
+              name: "Intelligent Sun Shade"
+              message: "{{ room_label }}: re-opened (sun out of window)"
+
+      # --- Branch 6: Grace timer expired, re-evaluate ---
+      - conditions:
+          - condition: trigger
+            id: grace_expired
+          - condition: numeric_state
+            entity_id: sun.sun
+            attribute: azimuth
+            above: !input sun_azimuth_min
+          - condition: numeric_state
+            entity_id: sun.sun
+            attribute: azimuth
+            below: !input sun_azimuth_max
+          - condition: numeric_state
+            entity_id: !input cover_entity
+            attribute: current_position
+            above: 50
+          - condition: or
+            conditions:
+              - condition: numeric_state
+                entity_id: !input room_climate_entity
+                attribute: current_temperature
+                above: input_number.shade_room_cap
+              - condition: and
+                conditions:
+                  - condition: numeric_state
+                    entity_id: input_number.shade_today_outdoor_max_forecast
+                    above: input_number.shade_forecast_max_threshold
+                  - condition: numeric_state
+                    entity_id: weather.forecast_home
+                    attribute: cloud_coverage
+                    below: input_number.shade_clouds_close_threshold
+        sequence:
+          - action: cover.set_cover_position
+            target:
+              entity_id: !input cover_entity
+            data:
+              position: "{{ states('input_number.shade_closed_position') | int }}"
+          - action: logbook.log
+            data:
+              name: "Intelligent Sun Shade"
+              message: "{{ room_label }}: grace expired, re-asserted close"
+
+      # --- Branch 7: Startup re-evaluation (HA cold start mid-window) ---
+      - conditions:
+          - condition: trigger
+            id: startup
+        sequence:
+          # Delay so weather/derivative entities finish loading before we check them.
+          - delay: "00:00:30"
+          - condition: state
+            entity_id: !input manual_grace_timer
+            state: idle
+          - condition: numeric_state
+            entity_id: sun.sun
+            attribute: azimuth
+            above: !input sun_azimuth_min
+          - condition: numeric_state
+            entity_id: sun.sun
+            attribute: azimuth
+            below: !input sun_azimuth_max
+          - condition: numeric_state
+            entity_id: sun.sun
+            attribute: elevation
+            above: !input sun_elevation_min
+          - condition: numeric_state
+            entity_id: input_number.shade_today_outdoor_max_forecast
+            above: input_number.shade_forecast_max_threshold
+          - condition: numeric_state
+            entity_id: weather.forecast_home
+            attribute: cloud_coverage
+            below: input_number.shade_clouds_close_threshold
+          - condition: numeric_state
+            entity_id: !input cover_entity
+            attribute: current_position
+            above: 50
+          - action: input_number.set_value
+            target:
+              entity_id: !input forecast_snapshot
+            data:
+              value: "{{ states('input_number.shade_today_outdoor_max_forecast') | float }}"
+          - action: cover.set_cover_position
+            target:
+              entity_id: !input cover_entity
+            data:
+              position: "{{ states('input_number.shade_closed_position') | int }}"
+          - action: input_datetime.set_datetime
+            target:
+              entity_id: !input predictive_close_dt
+            data:
+              datetime: "{{ now().isoformat() }}"
+          - action: logbook.log
+            data:
+              name: "Intelligent Sun Shade"
+              message: "{{ room_label }}: startup re-evaluation — closing (conditions met)"
