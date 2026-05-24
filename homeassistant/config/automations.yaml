@@ -66,9 +66,15 @@
 - id: '1770681600001'
   alias: Seasonal Climate Mode Switch
   description: >
-    Switch all VT fancoil entities between heat/cool/off based on
-    the climate_season selector. Controls chiller. Safe transition
-    (off → wait → new mode) prevents mode conflicts.
+    Switch all VT fancoil entities between heat/cool/off based on the
+    climate_season selector. Controls chiller (respecting the 10-min
+    min-cycle rule on transitions). Forces comfort preset after mode
+    change to prevent the 0 °C frost bug (unconfigured cool-mode presets).
+    NOTE: chiller cold-water delivery to fancoils takes ~10-15 min (measured
+    2026-05-24). On weekday mornings the separate "Chiller Pre-start"
+    automation fires first so cold water is already flowing by the time
+    a user-initiated summer switch happens; if no pre-start, expect
+    ~15 min of warm-air blowing before useful cooling begins.
   triggers:
   - trigger: state
     entity_id: input_select.climate_season
@@ -87,14 +93,15 @@
       - climate.climate_mensa
       - climate.projects_2
       new_season: "{{ states('input_select.climate_season') }}"
+      chiller_last_changed_age: >
+        {{ (now() - states.switch.chiller.last_changed).total_seconds() }}
+      chiller_min_cycle_ok: >
+        {{ (now() - states.switch.chiller.last_changed).total_seconds() >= 600 }}
   - action: climate.set_hvac_mode
     target:
       entity_id: "{{ all_thermostats }}"
     data:
       hvac_mode: "off"
-  - action: switch.turn_off
-    target:
-      entity_id: switch.chiller
   - delay:
       seconds: 5
   - choose:
@@ -102,25 +109,183 @@
       - condition: template
         value_template: "{{ new_season == 'winter' }}"
       sequence:
+      # Heating doesn't use the chiller — turn it off if it has been on long enough
+      - if:
+        - condition: template
+          value_template: >
+            {{ is_state('switch.chiller', 'on') and chiller_min_cycle_ok }}
+        then:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.chiller
       - action: climate.set_hvac_mode
         target:
           entity_id: "{{ all_thermostats }}"
         data:
           hvac_mode: heat
+      # Force comfort preset so VTs land on a sane setpoint
+      - action: climate.set_preset_mode
+        target:
+          entity_id: "{{ all_thermostats }}"
+        data:
+          preset_mode: comfort
     - conditions:
       - condition: template
         value_template: "{{ new_season == 'summer' }}"
       sequence:
-      - action: switch.turn_on
-        target:
-          entity_id: switch.chiller
+      # Cooling needs the chiller — turn it on if it has been off long enough
+      - if:
+        - condition: template
+          value_template: >
+            {{ is_state('switch.chiller', 'off') and chiller_min_cycle_ok }}
+        then:
+        - action: switch.turn_on
+          target:
+            entity_id: switch.chiller
       - delay:
-          seconds: 2
+          seconds: 5
       - action: climate.set_hvac_mode
         target:
           entity_id: "{{ all_thermostats }}"
         data:
           hvac_mode: cool
+      # Force comfort preset so VTs don't land on boost/frost with 0 °C target
+      # (Summer Dynamic Temperature Adjustment then keeps comfort temp tuned)
+      - action: climate.set_preset_mode
+        target:
+          entity_id: "{{ all_thermostats }}"
+        data:
+          preset_mode: comfort
+    - conditions:
+      - condition: template
+        value_template: "{{ new_season == 'off' }}"
+      sequence:
+      # Season=off: ensure chiller is off (respecting min-cycle)
+      - if:
+        - condition: template
+          value_template: >
+            {{ is_state('switch.chiller', 'on') and chiller_min_cycle_ok }}
+        then:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.chiller
+  mode: single
+- id: chiller_pre_start
+  alias: Chiller Pre-start (workday morning)
+  description: >
+    On workday mornings during summer mode, turn the chiller ON early
+    enough for cold water to reach all fancoils before the schedule
+    blueprints engage cooling at 07:30 (preheat/precool) and 08:00 (comfort).
+    Measured chiller→useful-cooling delay is ~10-15 min on a mild morning
+    (2026-05-24), so 06:30 leaves comfortable margin. Respects the 10-min
+    min-cycle guard: skips if chiller has transitioned in the last 10 min.
+  triggers:
+  - trigger: time
+    at: '06:30:00'
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.workday_sensor
+    state: 'on'
+  - condition: state
+    entity_id: input_select.climate_season
+    state: summer
+  - condition: state
+    entity_id: switch.chiller
+    state: 'off'
+  - condition: template
+    value_template: >
+      {{ (now() - states.switch.chiller.last_changed).total_seconds() >= 600 }}
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id: switch.chiller
+  mode: single
+- id: morning_vt_alignment
+  alias: Morning VT Alignment (workday)
+  description: >
+    Each workday at 07:00, ensure every VT's hvac_mode matches the
+    current season selector and every VT is in `comfort` preset.
+    Recovers from manual VT-off overrides done the previous evening,
+    weekend HA restarts, or any other condition that left VTs out of
+    sync with input_select.climate_season. Does NOT touch the chiller
+    (handled separately by Chiller Pre-start, which fires at 06:30).
+    Skips entirely on non-workdays.
+  triggers:
+  - trigger: time
+    at: '07:00:00'
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.workday_sensor
+    state: 'on'
+  actions:
+  - variables:
+      all_thermostats:
+      - climate.fancoil_dagmar
+      - climate.fancoil_tania
+      - climate.projects_1
+      - climate.fancoil_cs
+      - climate.fancoil_reception
+      - climate.fancoil_meeting
+      - climate.fancoil_openspace
+      - climate.fancoil_entrance
+      - climate.climate_mensa
+      - climate.projects_2
+      season: "{{ states('input_select.climate_season') }}"
+      target_hvac: >
+        {% if season == 'summer' %}cool
+        {% elif season == 'winter' %}heat
+        {% else %}off
+        {% endif %}
+  - action: climate.set_hvac_mode
+    target:
+      entity_id: "{{ all_thermostats }}"
+    data:
+      hvac_mode: "{{ target_hvac | trim }}"
+  # Only set comfort preset when actively heating/cooling — keeps weekend off-state clean
+  - if:
+    - condition: template
+      value_template: "{{ target_hvac | trim != 'off' }}"
+    then:
+    - action: climate.set_preset_mode
+      target:
+        entity_id: "{{ all_thermostats }}"
+      data:
+        preset_mode: comfort
+  mode: single
+- id: chiller_end_of_day_off
+  alias: Chiller End-of-day Off
+  description: >
+    Turn the chiller off in the evening once schedule blueprints have
+    moved all VTs to frost preset (19:00) and nobody is demanding active
+    cooling. Fires at 19:30 to give the 19:00 frost transition 30 min
+    to settle. Respects the 10-min min-cycle guard. Skips entirely if
+    season is not summer.
+  triggers:
+  - trigger: time
+    at: '19:30:00'
+  conditions:
+  - condition: state
+    entity_id: input_select.climate_season
+    state: summer
+  - condition: state
+    entity_id: switch.chiller
+    state: 'on'
+  - condition: template
+    value_template: >
+      {{ (now() - states.switch.chiller.last_changed).total_seconds() >= 600 }}
+  # Skip if any VT is still actively cooling — chiller stays on until they idle
+  - condition: template
+    value_template: >
+      {% set cooling = expand([
+        'climate.fancoil_dagmar','climate.fancoil_tania','climate.projects_1',
+        'climate.fancoil_cs','climate.fancoil_reception','climate.fancoil_meeting',
+        'climate.fancoil_openspace','climate.fancoil_entrance','climate.climate_mensa',
+        'climate.projects_2']) | selectattr('attributes.hvac_action','eq','cooling') | list %}
+      {{ cooling | length == 0 }}
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id: switch.chiller
   mode: single
 - id: summer_dynamic_temp_adjust
   alias: Summer Dynamic Temperature Adjustment

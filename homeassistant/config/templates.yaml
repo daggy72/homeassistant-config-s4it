@@ -1,7 +1,9 @@
 # Template number entities — map Versatile Thermostat valve % to Shelly 0-10V fan speed
 # VT (over_valve mode) sends 0-100% → template number → light brightness → 0-10V output
 - number:
-    - name: "Fancoil Mensa 1"
+    # Mensa: one Shelly 0-10V (Shelly "Fancoils-Mensa", MAC 8813bfe0fc18) drives
+    # both ceiling fancoils wired electrically in parallel.
+    - name: "Fancoil Mensa"
       unique_id: fancoil_mensa_1
       min: 0
       max: 100
@@ -27,33 +29,6 @@
             - action: light.turn_off
               target:
                 entity_id: light.shellypro0110pm_8813bfe0fc18
-
-    - name: "Fancoil Mensa 2"
-      unique_id: fancoil_mensa_2
-      min: 0
-      max: 100
-      step: 1
-      unit_of_measurement: "%"
-      state: >
-        {% if is_state('light.shellypro0110pm_8813bfd9525c', 'on') %}
-          {{ (state_attr('light.shellypro0110pm_8813bfd9525c', 'brightness') | float(0) / 255 * 100) | round(0) }}
-        {% else %}
-          0
-        {% endif %}
-      set_value:
-        - if:
-            - condition: template
-              value_template: "{{ value | int > 0 }}"
-          then:
-            - action: light.turn_on
-              target:
-                entity_id: light.shellypro0110pm_8813bfd9525c
-              data:
-                brightness_pct: "{{ value | int }}"
-          else:
-            - action: light.turn_off
-              target:
-                entity_id: light.shellypro0110pm_8813bfd9525c
 
     - name: "Fancoil Projects 1"
       unique_id: fancoil_projects_1
@@ -114,6 +89,9 @@
     # When old fancoils are replaced with stepless units, just change set_value
     # to control Shelly 0-10V brightness instead of ESP32 fan relays.
 
+    # Dagmar's office: one Shelly 0-10V (Shelly "Fancoils-Dagmar", MAC 8813bfd9525c)
+    # drives both new stepless fancoils wired electrically in parallel. Replaces the
+    # old binary smart-plug fancoil.
     - name: "Fancoil Dagmar"
       unique_id: fancoil_dagmar
       min: 0
@@ -121,8 +99,8 @@
       step: 1
       unit_of_measurement: "%"
       state: >
-        {% if is_state('switch.smart_switch_25010986516751513702c4e7ae1293a2_outlet', 'on') %}
-          100
+        {% if is_state('light.shellypro0110pm_8813bfd9525c', 'on') %}
+          {{ (state_attr('light.shellypro0110pm_8813bfd9525c', 'brightness') | float(0) / 255 * 100) | round(0) }}
         {% else %}
           0
         {% endif %}
@@ -131,13 +109,15 @@
             - condition: template
               value_template: "{{ value | int > 0 }}"
           then:
-            - action: switch.turn_on
+            - action: light.turn_on
               target:
-                entity_id: switch.smart_switch_25010986516751513702c4e7ae1293a2_outlet
+                entity_id: light.shellypro0110pm_8813bfd9525c
+              data:
+                brightness_pct: "{{ value | int }}"
           else:
-            - action: switch.turn_off
+            - action: light.turn_off
               target:
-                entity_id: switch.smart_switch_25010986516751513702c4e7ae1293a2_outlet
+                entity_id: light.shellypro0110pm_8813bfd9525c
 
     - name: "Fancoil Tania"
       unique_id: fancoil_tania_valve

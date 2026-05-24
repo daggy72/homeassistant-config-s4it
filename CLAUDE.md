@@ -82,12 +82,12 @@ Two generations of fancoil hardware coexist, both driven by Versatile Thermostat
 
 #### New Fancoil Entities (templates.yaml — Shelly 0-10V)
 
-| Template Number | Shelly 0-10V Entity |
-|-----------------|---------------------|
-| Fancoil Mensa 1 | `light.shellypro0110pm_8813bfe0fc18` |
-| Fancoil Mensa 2 | `light.shellypro0110pm_8813bfd9525c` |
-| Fancoil Projects 1 | `light.shellypro0110pm_8813bfe0e42c` |
-| Fancoil Projects 2 | `light.shellypro0110pm_8813bfd95330` |
+| Template Number | Shelly 0-10V Entity | Shelly App Name | Notes |
+|---|---|---|---|
+| `number.fancoil_mensa_1` (display name "Fancoil Mensa") | `light.shellypro0110pm_8813bfe0fc18` | Fancoils-Mensa | Drives **both** Mensa ceiling fancoils wired in parallel |
+| `number.fancoil_dagmar` | `light.shellypro0110pm_8813bfd9525c` | Fancoils-Dagmar | Drives **both** new fancoils in Dagmar's office wired in parallel (replaced old binary smart plug) |
+| `number.fancoil_projects_1` | `light.shellypro0110pm_8813bfd95330` | — | One fancoil in the MT/Projects room |
+| `number.fancoil_projects_2` | `light.shellypro0110pm_8813bfe0e42c` | — | Other fancoil in the MT/Projects room |
 
 #### Old Fancoil Entities (ESPHome — ESP32 Athom 4CH relay)
 

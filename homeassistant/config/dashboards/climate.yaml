@@ -117,9 +117,7 @@ views:
           - entity: number.fancoil_entrance
             name: Entrance
           - entity: number.fancoil_mensa_1
-            name: Mensa 1
-          - entity: number.fancoil_mensa_2
-            name: Mensa 2
+            name: Mensa
 
       # --- Shades ---
       - type: entities
