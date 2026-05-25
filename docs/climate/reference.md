@@ -222,10 +222,9 @@ In firing order on a summer workday:
 | **HA startup / 07:00 workday** | `Morning VT Alignment` | Ensures every VT's hvac_mode matches the current season selector and forces comfort preset. Recovers from manual VT-off overrides, weekend HA reboots, etc. Does NOT touch chiller. |
 | **06:30 workday** (summer) | `Chiller Pre-start` | Turns chiller ON, respecting 10-min min-cycle. Pre-charges piping with cold water so by 07:30 (precool) or 08:00 (comfort) cold water is already flowing. Measured chiller→useful-cooling delay: ~10–15 min. |
 | **07:30 workday** | `Office Climate Schedule` (preheat trigger) | Sets `comfort` preset on Office VTs (Dagmar, Tania, Projects 1, CS, Reception) and Common VTs (OpenSpace, Entrance, Mensa, Projects 2). In summer this is effectively "precool". |
-| **08:00 workday** | Schedule blueprint (comfort trigger) | Sets `comfort` preset again (redundant if preheat already fired). Meeting Room schedule fires here too. |
+| **08:00 workday** | Schedule blueprint (comfort trigger) | Sets `comfort` preset on Office + Common VTs. **Meeting Room schedule fires `eco` here** (eco-by-default per the 2026-05-25 change; manual override to `comfort`/`boost` via dashboard during actual meetings). |
 | **every 30 min**, summer mode, comfort preset only | `Summer Dynamic Temperature Adjustment` | Pushes `sensor.summer_comfort_office` (24–27 °C scaled by outdoor temp) into Office VTs, and `sensor.summer_comfort_common` (25–28 °C) into Common VTs. Comfort target tracks outdoor temp to avoid cold shock. |
-| **12:00 workday** | `Meeting Room Boost (12-14)` | Boosts Meeting Room to 22 °C target during lunch. Fires `boost` preset. |
-| **14:00 workday** | Same automation, end of boost | Returns Meeting Room to `comfort`. |
+| ~~12:00 / 14:00 workday~~ | ~~`Meeting Room Boost (12-14)`~~ | **Removed 2026-05-25.** Lunch moved to Mensa; Meeting Room stays in `eco` by default. Manual `comfort`/`boost` override via dashboard when the room is actually used for a meeting. |
 | **17:00** | Schedule blueprint (eco trigger) | Sets `eco` preset on all zones. **⚠️ Without cool-mode eco preset configured, this triggers the 0 °C bug. Configure presets before relying on this.** |
 | **19:00** | Schedule blueprint (frost trigger) | Sets `frost` preset. Same caveat as eco. |
 | **19:30** (summer) | `Chiller End-of-day Off` | Turns chiller OFF if (a) summer, (b) chiller has been on ≥ 10 min, (c) no VT currently `hvac_action: cooling`. |
@@ -347,9 +346,30 @@ Always **respect user overrides**. If someone manually opens a shade, the automa
 
 **For production**: never matter — VTs should drive fans, not us manually.
 
+### ESP32 fancoils need staged activation (off → low → target)
+
+**Symptom**: HA reports `fan.fancoil_XX_fancoil` state `on` at percentage `100`, but the physical fan doesn't engage. No noise, no airflow.
+
+**Cause**: the 3-speed ESP32 fancoils (Athom 4CH boards) require a multi-step relay actuation sequence to physically engage. A single "set to 100%" command on a fan that's already in state "on at 100%" doesn't trigger any relay change — the firmware sees no transition needed and the physical contactor stays in its previous (de-energized) state. Confirmed 2026-05-25 with OpenSpace fans.
+
+**Required sequence**: `off → wait 2 s → low (33 %) → wait 2 s → target speed`.
+
+**Already implemented**: every `set_value` block in `templates.yaml` for dual-fan zones (CS, Meeting, OpenSpace, Tania) and single-fan zones (Reception, Entrance) follows this pattern. VT → number entity → template → staged service calls.
+
+**Manual bypass workaround**: if you ever need to drive a fan directly without VT in the path:
+1. `HassTurnOff fan.fancoil_XX_fancoil`
+2. wait 2 s
+3. `HassTurnOn fan.fancoil_XX_fancoil` with `percentage: 33`
+4. wait 2 s
+5. `HassTurnOn fan.fancoil_XX_fancoil` with `percentage: <target>`
+
+Or as a quick recovery: a single off → on cycle (without explicit staging) **sometimes** works because the off forces a real transition. Less reliable than full staging.
+
+**Stepless Shelly 0-10V fancoils (Mensa, Office Dagmar, Projects 1+2) do NOT have this issue** — `HassLightSet brightness X` actuates the analog output directly with no relay sequencing needed.
+
 ### Meeting Room temp sensor dead
 
-`MT meeting room - UP Sense Temperature` is `unavailable`. As a result `climate.fancoil_meeting` has no `current_temperature` and cannot regulate properly. The Meeting Room Boost (12:00–14:00) automation will fire but VT cannot decide demand without a sensor.
+`MT meeting room - UP Sense Temperature` is `unavailable`. As a result `climate.fancoil_meeting` has no `current_temperature` and cannot regulate properly. Without a sensor VT cannot decide demand even if someone manually sets the room to comfort/boost.
 
 **Action**: replace the UP Sense sensor in the Meeting Room.
 

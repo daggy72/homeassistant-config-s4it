@@ -267,9 +267,11 @@
     event: start
   conditions: []
   actions:
-  # Wait a moment for entities + integrations (especially VT) to finish init
+  # Wait for VT integration to finish init. Observed 2026-05-25: VT was still
+  # printing "not ready yet" 2+ min into startup on a cold container restart.
+  # 180 s covers that with margin.
   - delay:
-      seconds: 60
+      seconds: 180
   - variables:
       all_thermostats:
       - climate.fancoil_dagmar
@@ -441,8 +443,11 @@
 - id: meeting_climate_schedule
   alias: Meeting Room Climate Schedule
   description: >
-    Meeting Room: comfort 20°C work hours, eco 17°C evening,
-    frost 15°C overnight. Workdays only.
+    Meeting Room: eco preset all day by default. Lunch is no longer taken
+    in the meeting room (moved to Mensa 2026-05), so there's no scheduled
+    boost. When the room IS used for a meeting, manually set its preset
+    to `comfort` or `boost` via the dashboard — auto-revert (60 min for
+    boost) catches it. Frost preset overnight as usual.
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
@@ -451,46 +456,11 @@
       comfort_time: '08:00:00'
       eco_time: '17:00:00'
       frost_time: '19:00:00'
-      comfort_preset: comfort
+      # eco-by-default: the "comfort" slot fires the eco preset instead of comfort,
+      # so the room stays in eco from 08:00 through 17:00 unless manually overridden.
+      comfort_preset: eco
       eco_preset: eco
       frost_preset: frost
-- id: meeting_room_boost
-  alias: Meeting Room Boost (12-14)
-  description: >
-    Boost meeting room to 22°C between 12:00-14:00 on workdays,
-    then return to comfort preset.
-  triggers:
-  - trigger: time
-    at: '12:00:00'
-    id: boost_start
-  - trigger: time
-    at: '14:00:00'
-    id: boost_end
-  conditions:
-  - condition: state
-    entity_id: binary_sensor.workday_sensor
-    state: 'on'
-  actions:
-  - choose:
-    - conditions:
-      - condition: trigger
-        id: boost_start
-      sequence:
-      - action: climate.set_preset_mode
-        target:
-          entity_id: climate.fancoil_meeting
-        data:
-          preset_mode: boost
-    - conditions:
-      - condition: trigger
-        id: boost_end
-      sequence:
-      - action: climate.set_preset_mode
-        target:
-          entity_id: climate.fancoil_meeting
-        data:
-          preset_mode: comfort
-  mode: single
 - id: boost_auto_revert
   alias: Boost Auto-Revert
   description: >
