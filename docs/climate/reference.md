@@ -104,14 +104,16 @@ Shelly 0-10V brightness maps to 0-10V analog signal that drives stepless fancoil
 
 | Zone | Sensor entity | Type |
 |---|---|---|
-| Mensa | `sensor.shellywalldisplay_00a90b53f68a_temperature` | Shelly Wall Display |
+| Mensa | `sensor.shellywalldisplay_00a90b53f68a_temperature` | Shelly Wall Display @ 10.0.11.33 |
 | Office Dagmar | `sensor.up_sense_temperature_2` (a.k.a. `MT Dagmar - UP Sense Temperature`) | UP Sense |
 | Tania | UP Sense (`MT Tania - UP Sense`) | UP Sense |
 | CS | UP Sense (`CC - UP Sense`) | UP Sense |
 | Meeting | `MT meeting room - UP Sense Temperature` | UP Sense — **currently dead, needs replacement** |
 | OpenSpace | `OpenSpace - UP Sense Temperature` | UP Sense |
 | Reception | `Reception UP Sense Temperature` | UP Sense |
-| Projects 1, 2, Entrance | (various, see VT config) | UP Sense / Shelly DeskDisplay |
+| Entrance | UP Sense | UP Sense |
+| Projects 1 | Shelly DeskDisplay @ 10.0.20.246 (`ShellyWallDisplay-000822D01C79`) | Wall display — **occasionally goes offline**, recovered by physical power-cycle (confirmed 2026-05-25). Watch for recurrence. |
+| **Projects 2** | **borrows Mensa's sensor** (`sensor.shellywalldisplay_00a90b53f68a_temperature`) | **No dedicated sensor as of 2026-05-25.** VT regulates based on Mensa air, not Projects 2 air. Risk: Projects 2 (glass-wrapped S+W, no shade) may overheat or overcool independently of Mensa (shaded). **TODO: install dedicated sensor.** |
 | Outdoor | `sensor.outdoor_temperature` | (driving dynamic comfort) |
 
 EMA (exponential moving average) variants exist per VT zone (e.g. `sensor.fancoil_dagmar_ema_temperature`) — useful for monitoring but lag the raw sensor by several minutes.

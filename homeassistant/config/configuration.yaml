@@ -22,6 +22,10 @@ script: !include scripts.yaml
 scene: !include scenes.yaml
 
 # --- Seasonal Climate Mode ---
+# NOTE: no `initial:` set — HA restores the last-saved value of climate_season
+# across restarts from .storage/core.restore_state. Setting `initial:` here
+# forces the value on every restart and broke things on 2026-05-25 (HA update
+# reset summer → winter overnight, skipped Monday morning chiller pre-start).
 input_select:
   climate_season:
     name: "Climate Season"
@@ -30,7 +34,6 @@ input_select:
       - winter
       - "off"
       - summer
-    initial: winter
 
 # --- Template entities (fancoil number → Shelly 0-10V brightness) ---
 template: !include templates.yaml

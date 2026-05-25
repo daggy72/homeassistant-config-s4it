@@ -252,6 +252,58 @@
       data:
         preset_mode: comfort
   mode: single
+- id: ha_startup_climate_restore
+  alias: HA Startup — Climate Restore
+  description: >
+    On Home Assistant startup, re-apply the climate_season's hvac_mode +
+    comfort preset to all VTs. Defends against HA restarts mid-season where
+    VTs might come back in an inconsistent state (off, or wrong mode).
+    Idempotent — if VTs are already in the right state, the calls are no-ops.
+    Does NOT touch the chiller — that's managed by Chiller Pre-start (morning)
+    and Chiller End-of-day Off (evening); they will catch up at their own
+    schedules.
+  triggers:
+  - trigger: homeassistant
+    event: start
+  conditions: []
+  actions:
+  # Wait a moment for entities + integrations (especially VT) to finish init
+  - delay:
+      seconds: 60
+  - variables:
+      all_thermostats:
+      - climate.fancoil_dagmar
+      - climate.fancoil_tania
+      - climate.projects_1
+      - climate.fancoil_cs
+      - climate.fancoil_reception
+      - climate.fancoil_meeting
+      - climate.fancoil_openspace
+      - climate.fancoil_entrance
+      - climate.climate_mensa
+      - climate.projects_2
+      season: "{{ states('input_select.climate_season') }}"
+      target_hvac: >
+        {% if season == 'summer' %}cool
+        {% elif season == 'winter' %}heat
+        {% else %}off
+        {% endif %}
+  - action: climate.set_hvac_mode
+    target:
+      entity_id: "{{ all_thermostats }}"
+    data:
+      hvac_mode: "{{ target_hvac | trim }}"
+  # Force comfort preset only when actively heating/cooling
+  - if:
+    - condition: template
+      value_template: "{{ target_hvac | trim != 'off' }}"
+    then:
+    - action: climate.set_preset_mode
+      target:
+        entity_id: "{{ all_thermostats }}"
+      data:
+        preset_mode: comfort
+  mode: single
 - id: chiller_end_of_day_off
   alias: Chiller End-of-day Off
   description: >
