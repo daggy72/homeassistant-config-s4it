@@ -172,20 +172,22 @@ Current central settings (excerpt):
 
 ### Cool-mode presets
 
-⚠️ **Currently unconfigured** — neither central nor per-VT cool-mode preset temperatures are set. This causes the 0 °C frost bug (see [§10](#10-known-issues--defenses)). Until configured, only the `comfort` preset is safe to be in during summer (the `Summer Dynamic Temperature Adjustment` automation pushes a sane setpoint).
+**Configured 2026-05-25 via direct storage edit** of `.storage/core.config_entries`. Schema: keys are `<preset>_ac_temp` (the `_ac` suffix because VTs run with `ac_mode: true`; heat-mode equivalents would be `<preset>_temp` without the `_ac`).
 
-Recommended defaults to configure (per VT, or in Central for VTs with `use_presets_central_config: true`):
-
-| Preset | Office target | Common target | Note |
+| Preset key | Central (inherited by Mensa, OpenSpace, Entrance) | Office VTs (Dagmar, Tania, Projects 1, CS, Reception) | Common non-inherit (Projects 2, Meeting) |
 |---|---|---|---|
-| Comfort | 25.0 °C | 26.0 °C | Will be overridden by dynamic temp sensor in summer |
-| Eco | 28.0 °C | 28.0 °C | Evening / unoccupied buffer |
-| Frost | 30.0 °C | 30.0 °C | Effectively "no cooling" — at temp_max |
-| Boost | 22.0 °C | 23.0 °C | Aggressive cooling for short bursts |
+| `comfort_ac_temp` | 26.0 | 25.0 | 26.0 |
+| `eco_ac_temp` | 28.0 | 28.0 | 28.0 |
+| `boost_ac_temp` | 23.0 | 22.0 | 23.0 |
+| `frost_ac_temp` | 30.0 | 30.0 | 30.0 |
+
+Comfort is a fallback — `Summer Dynamic Temperature Adjustment` overrides it every 30 min in summer mode (when comfort preset is active). Eco / frost / boost are the load-bearing values for off-hours, overnight, and manual boost respectively.
+
+**Caveat**: runtime preset target state survives HA restarts. Updating these `_ac_temp` values only takes effect on the next preset CHANGE — it does not retroactively rewrite the active preset's current target. If you tweak the values and need them applied immediately, manually cycle the preset on the affected entities.
 
 VTs inheriting from Central via `use_presets_central_config: true`: Mensa, OpenSpace, Entrance.
 
-VTs with their own presets (`use_presets_central_config: false`, must be configured individually): Projects 1, Projects 2, Office Dagmar, Tania, CS, Meeting, Reception.
+VTs with their own presets (`use_presets_central_config: false`): Projects 1, Projects 2, Office Dagmar, Tania, CS, Meeting, Reception.
 
 ### Per-VT settings of note
 
