@@ -94,9 +94,9 @@
       - climate.projects_2
       new_season: "{{ states('input_select.climate_season') }}"
       chiller_last_changed_age: >
-        {{ (now() - states.switch.chiller.last_changed).total_seconds() }}
+        {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() }}
       chiller_min_cycle_ok: >
-        {{ (now() - states.switch.chiller.last_changed).total_seconds() >= 600 }}
+        {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() >= 600 }}
   - action: climate.set_hvac_mode
     target:
       entity_id: "{{ all_thermostats }}"
@@ -113,11 +113,11 @@
       - if:
         - condition: template
           value_template: >
-            {{ is_state('switch.chiller', 'on') and chiller_min_cycle_ok }}
+            {{ is_state('switch.shellypro4pm_ece334eaf568_switch_2', 'on') and chiller_min_cycle_ok }}
         then:
         - action: switch.turn_off
           target:
-            entity_id: switch.chiller
+            entity_id: switch.shellypro4pm_ece334eaf568_switch_2
       - action: climate.set_hvac_mode
         target:
           entity_id: "{{ all_thermostats }}"
@@ -137,11 +137,11 @@
       - if:
         - condition: template
           value_template: >
-            {{ is_state('switch.chiller', 'off') and chiller_min_cycle_ok }}
+            {{ is_state('switch.shellypro4pm_ece334eaf568_switch_2', 'off') and chiller_min_cycle_ok }}
         then:
         - action: switch.turn_on
           target:
-            entity_id: switch.chiller
+            entity_id: switch.shellypro4pm_ece334eaf568_switch_2
       - delay:
           seconds: 5
       - action: climate.set_hvac_mode
@@ -164,11 +164,11 @@
       - if:
         - condition: template
           value_template: >
-            {{ is_state('switch.chiller', 'on') and chiller_min_cycle_ok }}
+            {{ is_state('switch.shellypro4pm_ece334eaf568_switch_2', 'on') and chiller_min_cycle_ok }}
         then:
         - action: switch.turn_off
           target:
-            entity_id: switch.chiller
+            entity_id: switch.shellypro4pm_ece334eaf568_switch_2
   mode: single
 - id: chiller_pre_start
   alias: Chiller Pre-start (workday morning)
@@ -190,15 +190,15 @@
     entity_id: input_select.climate_season
     state: summer
   - condition: state
-    entity_id: switch.chiller
+    entity_id: switch.shellypro4pm_ece334eaf568_switch_2
     state: 'off'
   - condition: template
     value_template: >
-      {{ (now() - states.switch.chiller.last_changed).total_seconds() >= 600 }}
+      {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() >= 600 }}
   actions:
   - action: switch.turn_on
     target:
-      entity_id: switch.chiller
+      entity_id: switch.shellypro4pm_ece334eaf568_switch_2
   mode: single
 - id: morning_vt_alignment
   alias: Morning VT Alignment (workday)
@@ -322,11 +322,11 @@
     entity_id: input_select.climate_season
     state: summer
   - condition: state
-    entity_id: switch.chiller
+    entity_id: switch.shellypro4pm_ece334eaf568_switch_2
     state: 'on'
   - condition: template
     value_template: >
-      {{ (now() - states.switch.chiller.last_changed).total_seconds() >= 600 }}
+      {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() >= 600 }}
   # Skip if any VT is still actively cooling — chiller stays on until they idle
   - condition: template
     value_template: >
@@ -339,7 +339,7 @@
   actions:
   - action: switch.turn_off
     target:
-      entity_id: switch.chiller
+      entity_id: switch.shellypro4pm_ece334eaf568_switch_2
   mode: single
 - id: summer_dynamic_temp_adjust
   alias: Summer Dynamic Temperature Adjustment
