@@ -383,6 +383,7 @@
         current_temp: "{{ states('sensor.wh1_temperature') | float(none) }}"
         active_profile: "{{ states('sensor.wh1_active_profile') | trim }}"
         last_requested_profile: "{{ states('input_text.warehouse_cell_last_requested_profile') | trim }}"
+        last_requested_command: "{{ states('input_text.warehouse_cell_last_requested_command') | trim }}"
         effective_profile: >
           {%- if active_profile in ['heating_guard', 'cooling_guard'] -%}
             {{ active_profile }}
@@ -401,6 +402,7 @@
           {%- else -%}
             cooling_guard
           {%- endif -%}
+        target_command: "{{ (target_profile | trim) ~ ':' ~ (min_temp | round(1)) ~ ':' ~ (max_temp | round(1)) }}"
         dwell_ok: >
           {% set last_command = states('input_datetime.warehouse_cell_last_profile_command') %}
           {% if last_command in ['unknown', 'unavailable', 'none', ''] %}
@@ -412,10 +414,11 @@
     - choose:
         - conditions:
             - condition: template
-              value_template: "{{ (target_profile | trim) != (effective_profile | trim) and (dwell_ok | bool) }}"
+              value_template: "{{ target_command != last_requested_command and (dwell_ok | bool) }}"
           sequence:
             - action: nector200.apply_profile
               data:
+                entity_id: sensor.wh1_temperature
                 profile: "{{ target_profile | trim }}"
                 min_temp: "{{ min_temp }}"
                 max_temp: "{{ max_temp }}"
@@ -424,6 +427,11 @@
                 entity_id: input_text.warehouse_cell_last_requested_profile
               data:
                 value: "{{ target_profile | trim }}"
+            - action: input_text.set_value
+              target:
+                entity_id: input_text.warehouse_cell_last_requested_command
+              data:
+                value: "{{ target_command }}"
             - action: input_datetime.set_datetime
               target:
                 entity_id: input_datetime.warehouse_cell_last_profile_command
@@ -431,7 +439,7 @@
                 datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
         - conditions:
             - condition: template
-              value_template: "{{ (target_profile | trim) != (effective_profile | trim) and not (dwell_ok | bool) }}"
+              value_template: "{{ target_command != last_requested_command and not (dwell_ok | bool) }}"
           sequence:
             - action: persistent_notification.create
               data:

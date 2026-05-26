@@ -83,7 +83,9 @@ views:
           - type: section
             label: Profile
           - entity: sensor.wh1_active_profile
-            name: Active profile
+            name: Last applied profile
+          - entity: input_text.warehouse_cell_last_requested_command
+            name: Last requested command
           - entity: sensor.wh1_last_profile_write
             name: Last profile write
           - entity: sensor.wh1_last_profile_error
