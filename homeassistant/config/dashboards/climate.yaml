@@ -59,6 +59,50 @@ views:
           - entity: sensor.outdoor_temperature
             name: Outdoor Temperature
 
+      # --- Warehouse Cell ---
+      - type: entities
+        title: Warehouse Cell
+        state_color: true
+        entities:
+          - type: section
+            label: Limits
+          - entity: input_number.warehouse_cell_min_temperature
+            name: Minimum
+          - entity: input_number.warehouse_cell_max_temperature
+            name: Maximum
+          - entity: input_boolean.warehouse_cell_manual_hold
+            name: Manual hold
+          - type: section
+            label: Temperature
+          - entity: sensor.wh1_temperature
+            name: S1 ambient
+          - entity: sensor.wh1_probe_s3_temperature
+            name: S3 probe
+          - entity: sensor.wh1_setpoint
+            name: NECTOR setpoint
+          - type: section
+            label: Profile
+          - entity: sensor.wh1_active_profile
+            name: Active profile
+          - entity: sensor.wh1_last_profile_write
+            name: Last profile write
+          - entity: sensor.wh1_last_profile_error
+            name: Last profile error
+          - type: section
+            label: Outputs
+          - entity: binary_sensor.wh1_compressor
+            name: Compressor
+          - entity: binary_sensor.wh1_defrost_output
+            name: Defrost
+          - entity: binary_sensor.wh1_fan
+            name: Fan
+          - entity: binary_sensor.wh1_alarm_relay
+            name: Alarm relay
+          - entity: binary_sensor.wh1_auxiliary_relay
+            name: Auxiliary relay
+          - entity: binary_sensor.wh1_hot_resistance
+            name: Hot resistance
+
       # --- Office Zones ---
       - type: grid
         columns: 2
