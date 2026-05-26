@@ -123,3 +123,24 @@ mensa_forecast_max_at_window_start:
   step: 0.1
   unit_of_measurement: "°C"
   mode: box
+
+# Warehouse cooling cell limits — operator-facing contract for NECTOR profile automation.
+warehouse_cell_min_temperature:
+  name: "Warehouse Cell — Minimum"
+  icon: mdi:thermometer-low
+  initial: 15.5
+  min: 10
+  max: 22
+  step: 0.1
+  unit_of_measurement: "°C"
+  mode: box
+
+warehouse_cell_max_temperature:
+  name: "Warehouse Cell — Maximum"
+  icon: mdi:thermometer-high
+  initial: 24.0
+  min: 18
+  max: 30
+  step: 0.1
+  unit_of_measurement: "°C"
+  mode: box

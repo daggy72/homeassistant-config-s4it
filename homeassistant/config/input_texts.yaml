@@ -1,0 +1,9 @@
+warehouse_cell_last_requested_profile:
+  name: "Warehouse Cell — Last requested profile"
+  icon: mdi:tune-variant
+  max: 32
+
+warehouse_cell_last_requested_command:
+  name: "Warehouse Cell — Last requested command"
+  icon: mdi:clipboard-check-outline
+  max: 96

@@ -341,6 +341,113 @@
     target:
       entity_id: switch.shellypro4pm_ece334eaf568_switch_2
   mode: single
+- id: warehouse_cell_profile_guard
+  alias: Warehouse Cell Profile Guard
+  description: >
+    Applies NECTOR cooling/heating guard profiles from operator min/max helpers.
+    Keeps cooling as the default passive stock-protection profile and enables
+    heating only below the low guard. Manual hold prevents writes.
+  triggers:
+    - trigger: homeassistant
+      event: start
+      id: startup
+    - trigger: state
+      entity_id:
+        - input_number.warehouse_cell_min_temperature
+        - input_number.warehouse_cell_max_temperature
+      id: limit_change
+    - trigger: state
+      entity_id: sensor.wh1_temperature
+      id: temperature_change
+    - trigger: state
+      entity_id: input_boolean.warehouse_cell_manual_hold
+      to: "off"
+      id: manual_hold_released
+    - trigger: time_pattern
+      minutes: "/15"
+      id: periodic
+  conditions:
+    - condition: state
+      entity_id: input_boolean.warehouse_cell_manual_hold
+      state: "off"
+    - condition: template
+      value_template: >
+        {% set min_temp = states('input_number.warehouse_cell_min_temperature') | float(none) %}
+        {% set max_temp = states('input_number.warehouse_cell_max_temperature') | float(none) %}
+        {% set current_temp = states('sensor.wh1_temperature') | float(none) %}
+        {{ min_temp is not none and max_temp is not none and current_temp is not none and min_temp < max_temp and (max_temp - min_temp) >= 2.0 }}
+  actions:
+    - variables:
+        min_temp: "{{ states('input_number.warehouse_cell_min_temperature') | float(none) }}"
+        max_temp: "{{ states('input_number.warehouse_cell_max_temperature') | float(none) }}"
+        current_temp: "{{ states('sensor.wh1_temperature') | float(none) }}"
+        active_profile: "{{ states('sensor.wh1_active_profile') | trim }}"
+        last_requested_profile: "{{ states('input_text.warehouse_cell_last_requested_profile') | trim }}"
+        last_requested_command: "{{ states('input_text.warehouse_cell_last_requested_command') | trim }}"
+        effective_profile: >
+          {%- if active_profile in ['heating_guard', 'cooling_guard'] -%}
+            {{ active_profile }}
+          {%- else -%}
+            {{ last_requested_profile }}
+          {%- endif -%}
+        target_profile: >
+          {%- set heat_enter = min_temp + 0.3 -%}
+          {%- set heat_exit = min_temp + 1.3 -%}
+          {%- if current_temp <= heat_enter -%}
+            heating_guard
+          {%- elif current_temp >= heat_exit -%}
+            cooling_guard
+          {%- elif effective_profile in ['heating_guard', 'cooling_guard'] -%}
+            {{ effective_profile }}
+          {%- else -%}
+            cooling_guard
+          {%- endif -%}
+        target_command: "{{ (target_profile | trim) ~ ':' ~ (min_temp | round(1)) ~ ':' ~ (max_temp | round(1)) }}"
+        dwell_ok: >
+          {% set last_command = states('input_datetime.warehouse_cell_last_profile_command') %}
+          {% if last_command in ['unknown', 'unavailable', 'none', ''] %}
+            true
+          {% else %}
+            {% set last_command_at = as_datetime(last_command) %}
+            {{ last_command_at is none or (now() - last_command_at).total_seconds() >= 7200 }}
+          {% endif %}
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ target_command != last_requested_command and (dwell_ok | bool) }}"
+          sequence:
+            - action: nector200.apply_profile
+              data:
+                entity_id: sensor.wh1_temperature
+                profile: "{{ target_profile | trim }}"
+                min_temp: "{{ min_temp }}"
+                max_temp: "{{ max_temp }}"
+            - action: input_text.set_value
+              target:
+                entity_id: input_text.warehouse_cell_last_requested_profile
+              data:
+                value: "{{ target_profile | trim }}"
+            - action: input_text.set_value
+              target:
+                entity_id: input_text.warehouse_cell_last_requested_command
+              data:
+                value: "{{ target_command }}"
+            - action: input_datetime.set_datetime
+              target:
+                entity_id: input_datetime.warehouse_cell_last_profile_command
+              data:
+                datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+        - conditions:
+            - condition: template
+              value_template: "{{ target_command != last_requested_command and not (dwell_ok | bool) }}"
+          sequence:
+            - action: persistent_notification.create
+              data:
+                notification_id: warehouse_cell_profile_guard
+                title: "Warehouse cell profile held"
+                message: >
+                  Target {{ target_profile | trim }} skipped because profile dwell time has not elapsed.
+  mode: single
 - id: summer_dynamic_temp_adjust
   alias: Summer Dynamic Temperature Adjustment
   description: >
