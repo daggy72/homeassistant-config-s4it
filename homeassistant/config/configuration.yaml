@@ -46,11 +46,3 @@ input_datetime: !include input_datetimes.yaml
 timer: !include timers.yaml
 counter: !include counters.yaml
 sensor: !include sensors.yaml
-
-# --- Panel iframes ---
-panel_iframe:
-  esphome:
-    title: "ESPHome"
-    url: "https://esphome.sales4.it"
-    icon: mdi:chip
-    require_admin: true
