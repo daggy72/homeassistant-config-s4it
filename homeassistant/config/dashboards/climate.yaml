@@ -73,6 +73,14 @@ views:
           - entity: input_boolean.warehouse_cell_manual_hold
             name: Manual hold
           - type: section
+            label: Watchdog
+          - entity: input_boolean.warehouse_cell_watchdog_enabled
+            name: Enabled
+          - entity: input_datetime.warehouse_cell_watchdog_until
+            name: Active until
+          - entity: input_text.warehouse_cell_watchdog_last_status
+            name: Last status
+          - type: section
             label: Temperature
           - entity: sensor.wh1_temperature
             name: S1 ambient

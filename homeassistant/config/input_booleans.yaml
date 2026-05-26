@@ -1,3 +1,8 @@
 warehouse_cell_manual_hold:
   name: "Warehouse Cell — Manual Hold"
   icon: mdi:hand-back-right
+
+warehouse_cell_watchdog_enabled:
+  name: "Warehouse Cell — Watchdog Enabled"
+  icon: mdi:shield-check
+  initial: true

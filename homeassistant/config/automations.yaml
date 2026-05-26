@@ -457,6 +457,166 @@
                 message: >
                   Target {{ target_profile | trim }} skipped because profile dwell time has not elapsed.
   mode: single
+- id: warehouse_cell_watchdog_monitor
+  alias: Warehouse Cell NECTOR Watchdog Monitor
+  description: >
+    Temporary 72-hour watchdog for NECTOR profile, temperature, and output
+    sanity while the new warehouse-cell guard logic settles in.
+  triggers:
+    - trigger: homeassistant
+      event: start
+      id: startup
+    - trigger: time_pattern
+      minutes: "/15"
+      id: periodic
+    - trigger: state
+      entity_id:
+        - input_number.warehouse_cell_min_temperature
+        - input_number.warehouse_cell_max_temperature
+        - input_boolean.warehouse_cell_manual_hold
+        - input_boolean.warehouse_cell_watchdog_enabled
+        - input_datetime.warehouse_cell_watchdog_until
+        - sensor.wh1_temperature
+        - sensor.wh1_probe_s3_temperature
+        - sensor.wh1_last_applied_profile
+        - sensor.wh1_last_profile_error
+        - binary_sensor.wh1_compressor
+        - binary_sensor.wh1_fan
+        - binary_sensor.wh1_hot_resistance
+      id: state_change
+  conditions:
+    - condition: state
+      entity_id: input_boolean.warehouse_cell_watchdog_enabled
+      state: "on"
+    - condition: template
+      value_template: >
+        {% set until_ts = as_timestamp(states('input_datetime.warehouse_cell_watchdog_until')) %}
+        {{ until_ts is not none and as_timestamp(now()) <= until_ts }}
+  actions:
+    - if:
+        - condition: template
+          value_template: "{{ trigger is defined and trigger.id == 'startup' }}"
+      then:
+        - delay: "00:02:00"
+    - variables:
+        issues: >
+          {% set min_v = states('input_number.warehouse_cell_min_temperature') | float(none) %}
+          {% set max_v = states('input_number.warehouse_cell_max_temperature') | float(none) %}
+          {% set s1 = states('sensor.wh1_temperature') | float(none) %}
+          {% set profile = states('sensor.wh1_last_applied_profile') | trim %}
+          {% set profile_error = states('sensor.wh1_last_profile_error') | trim | lower %}
+          {% set manual_hold = is_state('input_boolean.warehouse_cell_manual_hold', 'on') %}
+          {% set compressor_on = is_state('binary_sensor.wh1_compressor', 'on') %}
+          {% set heat_on = is_state('binary_sensor.wh1_hot_resistance', 'on') %}
+          {% set ns = namespace(items=[]) %}
+          {% if min_v is none or max_v is none or s1 is none %}
+            {% set ns.items = ns.items + ['CRITICAL: S1 temperature or min/max helpers are unavailable.'] %}
+          {% elif min_v >= max_v %}
+            {% set ns.items = ns.items + ['CRITICAL: warehouse min temperature is not below max temperature.'] %}
+          {% else %}
+            {% if s1 > max_v + 1.5 %}
+              {% set ns.items = ns.items + ['CRITICAL: S1 is ' ~ (s1 | round(1)) ~ ' C, above high guard ' ~ ((max_v + 1.5) | round(1)) ~ ' C.'] %}
+            {% elif s1 > max_v + 0.8 %}
+              {% set ns.items = ns.items + ['WARNING: S1 is ' ~ (s1 | round(1)) ~ ' C, above warning guard ' ~ ((max_v + 0.8) | round(1)) ~ ' C.'] %}
+            {% endif %}
+            {% if s1 < min_v - 0.5 %}
+              {% set ns.items = ns.items + ['CRITICAL: S1 is ' ~ (s1 | round(1)) ~ ' C, below low guard ' ~ ((min_v - 0.5) | round(1)) ~ ' C.'] %}
+            {% elif s1 < min_v - 0.3 %}
+              {% set ns.items = ns.items + ['WARNING: S1 is ' ~ (s1 | round(1)) ~ ' C, below warning guard ' ~ ((min_v - 0.3) | round(1)) ~ ' C.'] %}
+            {% endif %}
+          {% endif %}
+          {% if manual_hold %}
+            {% set ns.items = ns.items + ['WARNING: manual hold is on, so NECTOR profile writes are disabled.'] %}
+          {% elif profile not in ['cooling_guard', 'heating_guard'] %}
+            {% set ns.items = ns.items + ['WARNING: active NECTOR profile is ' ~ profile ~ '.'] %}
+          {% endif %}
+          {% if profile_error not in ['', 'none', 'unknown', 'unavailable'] %}
+            {% set ns.items = ns.items + ['WARNING: last NECTOR profile error is ' ~ profile_error ~ '.'] %}
+          {% endif %}
+          {% if compressor_on and heat_on %}
+            {% set ns.items = ns.items + ['CRITICAL: compressor and hot resistance are both on.'] %}
+          {% endif %}
+          {{ ns.items | join('\n') }}
+        status_level: >
+          {% if 'CRITICAL:' in issues %}
+            CRITICAL
+          {% elif issues | trim != '' %}
+            WARNING
+          {% else %}
+            OK
+          {% endif %}
+        status_summary: >
+          {% set min_v = states('input_number.warehouse_cell_min_temperature') | float(none) %}
+          {% set max_v = states('input_number.warehouse_cell_max_temperature') | float(none) %}
+          {% set s1 = states('sensor.wh1_temperature') | float(none) %}
+          {% set s3 = states('sensor.wh1_probe_s3_temperature') | float(none) %}
+          {% set profile = states('sensor.wh1_last_applied_profile') | trim %}
+          {{ now().strftime('%d %H:%M') }} {{ status_level | trim }} S1={{ (s1 | round(1)) if s1 is not none else '?' }} S3={{ (s3 | round(1)) if s3 is not none else '?' }} lim={{ (min_v | round(1)) if min_v is not none else '?' }}-{{ (max_v | round(1)) if max_v is not none else '?' }} prof={{ profile }} comp={{ states('binary_sensor.wh1_compressor') }} fan={{ states('binary_sensor.wh1_fan') }} heat={{ states('binary_sensor.wh1_hot_resistance') }}
+        watchdog_message: >
+          {{ issues | trim }}
+
+          S1: {{ states('sensor.wh1_temperature') }} C
+          S3: {{ states('sensor.wh1_probe_s3_temperature') }} C
+          Limits: {{ states('input_number.warehouse_cell_min_temperature') }} C to {{ states('input_number.warehouse_cell_max_temperature') }} C
+          Profile: {{ states('sensor.wh1_last_applied_profile') }}
+          Last command: {{ states('input_text.warehouse_cell_last_requested_command') }}
+          Last profile write: {{ states('sensor.wh1_last_profile_write') }}
+          Outputs: compressor={{ states('binary_sensor.wh1_compressor') }}, fan={{ states('binary_sensor.wh1_fan') }}, heat={{ states('binary_sensor.wh1_hot_resistance') }}
+          Watchdog active until: {{ states('input_datetime.warehouse_cell_watchdog_until') }}
+    - action: input_text.set_value
+      target:
+        entity_id: input_text.warehouse_cell_watchdog_last_status
+      data:
+        value: "{{ status_summary[:255] }}"
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ issues | trim != '' }}"
+          sequence:
+            - action: persistent_notification.create
+              data:
+                notification_id: warehouse_cell_watchdog
+                title: "Warehouse cell watchdog {{ status_level | trim | lower }}"
+                message: "{{ watchdog_message }}"
+      default:
+        - action: persistent_notification.dismiss
+          data:
+            notification_id: warehouse_cell_watchdog
+  mode: restart
+- id: warehouse_cell_watchdog_heartbeat
+  alias: Warehouse Cell NECTOR Watchdog Heartbeat
+  description: >
+    Twice-daily heartbeat proving the temporary warehouse-cell watchdog is
+    still active during the observation window.
+  triggers:
+    - trigger: time
+      at:
+        - "08:00:00"
+        - "20:00:00"
+  conditions:
+    - condition: state
+      entity_id: input_boolean.warehouse_cell_watchdog_enabled
+      state: "on"
+    - condition: template
+      value_template: >
+        {% set until_ts = as_timestamp(states('input_datetime.warehouse_cell_watchdog_until')) %}
+        {{ until_ts is not none and as_timestamp(now()) <= until_ts }}
+  actions:
+    - action: persistent_notification.create
+      data:
+        notification_id: warehouse_cell_watchdog_heartbeat
+        title: "Warehouse cell watchdog heartbeat"
+        message: >
+          Watchdog heartbeat at {{ now().strftime('%Y-%m-%d %H:%M') }}.
+
+          S1: {{ states('sensor.wh1_temperature') }} C
+          S3: {{ states('sensor.wh1_probe_s3_temperature') }} C
+          Limits: {{ states('input_number.warehouse_cell_min_temperature') }} C to {{ states('input_number.warehouse_cell_max_temperature') }} C
+          Profile: {{ states('sensor.wh1_last_applied_profile') }}
+          Setpoint: {{ states('sensor.wh1_setpoint') }} C
+          Outputs: compressor={{ states('binary_sensor.wh1_compressor') }}, fan={{ states('binary_sensor.wh1_fan') }}, heat={{ states('binary_sensor.wh1_hot_resistance') }}
+          Watchdog active until: {{ states('input_datetime.warehouse_cell_watchdog_until') }}
+  mode: single
 - id: summer_dynamic_temp_adjust
   alias: Summer Dynamic Temperature Adjustment
   description: >
