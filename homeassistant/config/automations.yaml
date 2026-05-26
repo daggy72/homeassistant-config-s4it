@@ -408,11 +408,17 @@
   alias: Office Climate Schedule
   description: >
     Office workspaces (Dagmar, Tania, Projects 1, Projects 2, Reception):
-    comfort preset during work hours (target driven by cool-mode comfort_ac_temp
-    25 °C + Summer Dynamic Temperature Adjustment overrides every 30 min),
-    eco preset evening (target 27 °C), frost overnight (target 30 °C).
-    Workdays only. Pre-heat at 07:30. CS moved to own eco-by-default schedule
-    2026-05-26; Projects 2 moved here from common (treated as workspace).
+    comfort preset 07:30–17:00 (target 25 °C with Summer Dynamic Temperature
+    Adjustment override), eco 17:00–17:30 (target 27 °C), **frost from 17:30
+    onwards** (target 30 °C = effectively no cooling). Workdays only.
+
+    Why frost at 17:30 instead of 19:00: observed 2026-05-26 18:15 — west-facing
+    offices were still being cooled at eco target 27 because room temp was 27.8
+    after a hot afternoon. User wants a hard stop on cooling shortly after
+    office hours. Hence frost_time advanced from 19:00 to 17:30.
+
+    CS moved to own eco-by-default schedule 2026-05-26; Projects 2 moved here
+    from common (treated as workspace).
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
@@ -424,7 +430,7 @@
       - climate.fancoil_reception
       comfort_time: '08:00:00'
       eco_time: '17:00:00'
-      frost_time: '19:00:00'
+      frost_time: '17:30:00'
       enable_preheat: true
       preheat_time: '07:30:00'
       comfort_preset: comfort
@@ -459,8 +465,8 @@
     Customer Service: eco-by-default. The "comfort" slot fires `eco` so the
     room stays in eco preset (target 27 °C) from 07:30 through 17:00 unless
     manually pulled to `comfort` (target 25 °C) when the room is actually used.
-    Same model as Meeting Room — moved here 2026-05-26 because CS isn't
-    occupied every day. Frost overnight.
+    **Frost from 17:30 onwards** (target 30 °C, no cooling). Same model as
+    Meeting Room — moved here 2026-05-26 because CS isn't occupied every day.
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
@@ -468,7 +474,7 @@
       - climate.fancoil_cs
       comfort_time: '08:00:00'
       eco_time: '17:00:00'
-      frost_time: '19:00:00'
+      frost_time: '17:30:00'
       enable_preheat: true
       preheat_time: '07:30:00'
       comfort_preset: eco
@@ -481,7 +487,8 @@
     in the meeting room (moved to Mensa 2026-05), so there's no scheduled
     boost. When the room IS used for a meeting, manually set its preset
     to `comfort` or `boost` via the dashboard — auto-revert (60 min for
-    boost) catches it. Frost preset overnight as usual.
+    boost) catches it. **Frost from 17:30 onwards** (no cooling after
+    office hours).
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
@@ -489,7 +496,7 @@
       - climate.fancoil_meeting
       comfort_time: '08:00:00'
       eco_time: '17:00:00'
-      frost_time: '19:00:00'
+      frost_time: '17:30:00'
       # eco-by-default: the "comfort" slot fires the eco preset instead of comfort,
       # so the room stays in eco from 08:00 through 17:00 unless manually overridden.
       comfort_preset: eco
