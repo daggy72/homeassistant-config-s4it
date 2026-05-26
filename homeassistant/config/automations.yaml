@@ -255,26 +255,31 @@
 - id: ha_startup_climate_restore
   alias: HA Startup — Climate Restore
   description: >
-    On Home Assistant startup, re-apply the climate_season's hvac_mode +
-    comfort preset to all VTs. Defends against HA restarts mid-season where
-    VTs might come back in an inconsistent state (off, or wrong mode).
-    Idempotent — if VTs are already in the right state, the calls are no-ops.
-    Does NOT touch the chiller — that's managed by Chiller Pre-start (morning)
-    and Chiller End-of-day Off (evening); they will catch up at their own
-    schedules.
+    On Home Assistant startup, re-apply the climate_season's hvac_mode to all
+    VTs. Defends against HA restarts mid-season where VTs might come back in
+    an off state. Does NOT touch preset_mode — leaves restored preset alone
+    (correct for time-of-day since the schedule blueprints had already set
+    eco/frost/comfort before the restart).
 
-    Trigger uses `event: homeassistant_started` (fires AFTER all integrations
-    finish setup) rather than `trigger: homeassistant`/`event: start` (which
-    fires too early — VT's template-number underlyings aren't yet resolvable
-    and our service calls got dropped). Fixed 2026-05-26 (T22).
+    Does NOT touch the chiller — that's managed by Chiller Pre-start (morning)
+    and Chiller End-of-day Off (evening).
+
+    History:
+    - 2026-05-26 T22 fix #1: switched trigger from `homeassistant`/`event: start`
+      to `event`/`event_type: homeassistant_started` (waits for all integrations
+      to finish setup). Still misses sometimes due to registration-vs-event race.
+    - 2026-05-26 T22 fix #2 (this version): REMOVED the unconditional preset-
+      force to `comfort`. Original purpose was killing the 0 °C frost bug, but
+      T5 (per-VT cool-mode presets configured) made that defense obsolete.
+      Forcing comfort at evening restarts caused over-cooling at 21:30 (target
+      25 °C in a 30 °C room → max demand).
   triggers:
   - trigger: event
     event_type: homeassistant_started
   conditions: []
   actions:
   # Short additional delay for VT's per-entity async init to settle after
-  # the homeassistant_started event. With the better trigger, 30 s is enough
-  # (vs the 180 s needed when using the too-early `event: start`).
+  # the homeassistant_started event.
   - delay:
       seconds: 30
   - variables:
@@ -300,16 +305,10 @@
       entity_id: "{{ all_thermostats }}"
     data:
       hvac_mode: "{{ target_hvac | trim }}"
-  # Force comfort preset only when actively heating/cooling
-  - if:
-    - condition: template
-      value_template: "{{ target_hvac | trim != 'off' }}"
-    then:
-    - action: climate.set_preset_mode
-      target:
-        entity_id: "{{ all_thermostats }}"
-      data:
-        preset_mode: comfort
+  # NOTE: intentionally NOT touching preset_mode. Restored preset from
+  # restore_state is correct for current time-of-day (schedule blueprints
+  # had set eco/frost/comfort before the restart). Forcing comfort here
+  # caused over-cooling at evening restarts (2026-05-26 21:24 incident).
   mode: single
 - id: chiller_end_of_day_off
   alias: Chiller End-of-day Off
