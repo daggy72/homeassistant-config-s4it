@@ -7,3 +7,8 @@ warehouse_cell_last_requested_command:
   name: "Warehouse Cell — Last requested command"
   icon: mdi:clipboard-check-outline
   max: 96
+
+warehouse_cell_watchdog_last_status:
+  name: "Warehouse Cell — Watchdog last status"
+  icon: mdi:shield-search
+  max: 255
