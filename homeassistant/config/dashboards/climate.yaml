@@ -54,7 +54,7 @@ views:
         entities:
           - entity: input_select.climate_season
             name: Active Season
-          - entity: switch.chiller
+          - entity: switch.shellypro4pm_ece334eaf568_switch_2
             name: Chiller
           - entity: sensor.outdoor_temperature
             name: Outdoor Temperature
@@ -82,7 +82,7 @@ views:
             name: NECTOR setpoint
           - type: section
             label: Profile
-          - entity: sensor.wh1_active_profile
+          - entity: sensor.wh1_last_applied_profile
             name: Last applied profile
           - entity: input_text.warehouse_cell_last_requested_command
             name: Last requested command

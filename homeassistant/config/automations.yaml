@@ -386,7 +386,7 @@
         min_temp: "{{ states('input_number.warehouse_cell_min_temperature') | float(none) }}"
         max_temp: "{{ states('input_number.warehouse_cell_max_temperature') | float(none) }}"
         current_temp: "{{ states('sensor.wh1_temperature') | float(none) }}"
-        active_profile: "{{ states('sensor.wh1_active_profile') | trim }}"
+        active_profile: "{{ states('sensor.wh1_last_applied_profile') | trim }}"
         last_requested_profile: "{{ states('input_text.warehouse_cell_last_requested_profile') | trim }}"
         last_requested_command: "{{ states('input_text.warehouse_cell_last_requested_command') | trim }}"
         effective_profile: >
