@@ -5,6 +5,16 @@ default_config:
 frontend:
   themes: !include_dir_merge_named themes
 
+lovelace:
+  mode: storage
+  dashboards:
+    climate-control:
+      mode: yaml
+      title: Climate Control
+      icon: mdi:thermostat
+      show_in_sidebar: true
+      filename: dashboards/climate.yaml
+
 logger:
   default: info
   logs:
