@@ -21,3 +21,9 @@ mensa_reactive_close_at:
   icon: mdi:clock-alert-outline
   has_date: true
   has_time: true
+
+warehouse_cell_last_profile_command:
+  name: "Warehouse Cell — Last profile command"
+  icon: mdi:clock-check-outline
+  has_date: true
+  has_time: true

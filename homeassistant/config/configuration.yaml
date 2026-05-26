@@ -41,6 +41,7 @@ template: !include templates.yaml
 # --- Sun shade helpers (see docs/superpowers/specs/2026-04-07-intelligent-sun-shade-design.md) ---
 input_number: !include input_numbers.yaml
 input_boolean: !include input_booleans.yaml
+input_text: !include input_texts.yaml
 input_datetime: !include input_datetimes.yaml
 timer: !include timers.yaml
 counter: !include counters.yaml

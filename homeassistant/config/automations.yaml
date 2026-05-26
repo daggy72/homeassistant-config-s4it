@@ -359,6 +359,10 @@
     - trigger: state
       entity_id: sensor.wh1_temperature
       id: temperature_change
+    - trigger: state
+      entity_id: input_boolean.warehouse_cell_manual_hold
+      to: "off"
+      id: manual_hold_released
     - trigger: time_pattern
       minutes: "/15"
       id: periodic
@@ -377,7 +381,14 @@
         min_temp: "{{ states('input_number.warehouse_cell_min_temperature') | float(none) }}"
         max_temp: "{{ states('input_number.warehouse_cell_max_temperature') | float(none) }}"
         current_temp: "{{ states('sensor.wh1_temperature') | float(none) }}"
-        current_profile: "{{ states('sensor.wh1_active_profile') }}"
+        active_profile: "{{ states('sensor.wh1_active_profile') | trim }}"
+        last_requested_profile: "{{ states('input_text.warehouse_cell_last_requested_profile') | trim }}"
+        effective_profile: >
+          {%- if active_profile in ['heating_guard', 'cooling_guard'] -%}
+            {{ active_profile }}
+          {%- else -%}
+            {{ last_requested_profile }}
+          {%- endif -%}
         target_profile: >
           {%- set heat_enter = min_temp + 0.3 -%}
           {%- set heat_exit = min_temp + 1.3 -%}
@@ -385,34 +396,46 @@
             heating_guard
           {%- elif current_temp >= heat_exit -%}
             cooling_guard
-          {%- elif current_profile in ['heating_guard', 'cooling_guard'] -%}
-            {{ current_profile }}
+          {%- elif effective_profile in ['heating_guard', 'cooling_guard'] -%}
+            {{ effective_profile }}
           {%- else -%}
             cooling_guard
           {%- endif -%}
         dwell_ok: >
-          {% set profile_entity = states.sensor.wh1_active_profile %}
-          {% if profile_entity is not defined or profile_entity.state in ['unknown', 'unavailable', 'none', ''] %}
+          {% set last_command = states('input_datetime.warehouse_cell_last_profile_command') %}
+          {% if last_command in ['unknown', 'unavailable', 'none', ''] %}
             true
           {% else %}
-            {{ (now() - profile_entity.last_changed).total_seconds() >= 7200 }}
+            {% set last_command_at = as_datetime(last_command) %}
+            {{ last_command_at is none or (now() - last_command_at).total_seconds() >= 7200 }}
           {% endif %}
     - choose:
         - conditions:
             - condition: template
-              value_template: "{{ (target_profile | trim) != current_profile and (dwell_ok | bool) }}"
+              value_template: "{{ (target_profile | trim) != (effective_profile | trim) and (dwell_ok | bool) }}"
           sequence:
             - action: nector200.apply_profile
               data:
                 profile: "{{ target_profile | trim }}"
                 min_temp: "{{ min_temp }}"
                 max_temp: "{{ max_temp }}"
+            - action: input_text.set_value
+              target:
+                entity_id: input_text.warehouse_cell_last_requested_profile
+              data:
+                value: "{{ target_profile | trim }}"
+            - action: input_datetime.set_datetime
+              target:
+                entity_id: input_datetime.warehouse_cell_last_profile_command
+              data:
+                datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
         - conditions:
             - condition: template
-              value_template: "{{ (target_profile | trim) != current_profile and not (dwell_ok | bool) }}"
+              value_template: "{{ (target_profile | trim) != (effective_profile | trim) and not (dwell_ok | bool) }}"
           sequence:
             - action: persistent_notification.create
               data:
+                notification_id: warehouse_cell_profile_guard
                 title: "Warehouse cell profile held"
                 message: >
                   Target {{ target_profile | trim }} skipped because profile dwell time has not elapsed.
