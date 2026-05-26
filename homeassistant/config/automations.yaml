@@ -350,7 +350,9 @@
   description: >
     Applies NECTOR cooling/heating guard profiles from operator min/max helpers.
     Keeps cooling as the default passive stock-protection profile and enables
-    heating only below the low guard. Manual hold prevents writes.
+    heating only below the low guard. Manual hold prevents writes. Reapplies the
+    last requested profile after Home Assistant restart because the integration
+    diagnostic profile state is memory-only.
   triggers:
     - trigger: homeassistant
       event: start
@@ -386,6 +388,7 @@
         max_temp: "{{ states('input_number.warehouse_cell_max_temperature') | float(none) }}"
         current_temp: "{{ states('sensor.wh1_temperature') | float(none) }}"
         active_profile: "{{ states('sensor.wh1_last_applied_profile') | trim }}"
+        needs_profile_reapply: "{{ active_profile not in ['heating_guard', 'cooling_guard'] }}"
         last_requested_profile: "{{ states('input_text.warehouse_cell_last_requested_profile') | trim }}"
         last_requested_command: "{{ states('input_text.warehouse_cell_last_requested_command') | trim }}"
         effective_profile: >
@@ -415,12 +418,12 @@
             {% set last_command_ts = as_timestamp(last_command) %}
             {{ last_command_ts is none or (as_timestamp(now()) - last_command_ts) >= 7200 }}
           {% endif %}
-        dwell_bypass: "{{ trigger.id in ['limit_change', 'manual_hold_released'] }}"
-        write_allowed: "{{ (dwell_ok | bool) or (dwell_bypass | bool) }}"
+        dwell_bypass: "{{ trigger.id in ['limit_change', 'manual_hold_released', 'startup'] }}"
+        write_allowed: "{{ (dwell_ok | bool) or (dwell_bypass | bool) or (needs_profile_reapply | bool) }}"
     - choose:
         - conditions:
             - condition: template
-              value_template: "{{ target_command != last_requested_command and (write_allowed | bool) }}"
+              value_template: "{{ (target_command != last_requested_command or (needs_profile_reapply | bool)) and (write_allowed | bool) }}"
           sequence:
             - action: nector200.apply_profile
               data:
@@ -445,7 +448,7 @@
                 datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
         - conditions:
             - condition: template
-              value_template: "{{ target_command != last_requested_command and not (write_allowed | bool) }}"
+              value_template: "{{ (target_command != last_requested_command or (needs_profile_reapply | bool)) and not (write_allowed | bool) }}"
           sequence:
             - action: persistent_notification.create
               data:
