@@ -415,10 +415,12 @@
             {% set last_command_at = as_datetime(last_command) %}
             {{ last_command_at is none or (now() - last_command_at).total_seconds() >= 7200 }}
           {% endif %}
+        dwell_bypass: "{{ trigger.id in ['limit_change', 'manual_hold_released'] }}"
+        write_allowed: "{{ (dwell_ok | bool) or (dwell_bypass | bool) }}"
     - choose:
         - conditions:
             - condition: template
-              value_template: "{{ target_command != last_requested_command and (dwell_ok | bool) }}"
+              value_template: "{{ target_command != last_requested_command and (write_allowed | bool) }}"
           sequence:
             - action: nector200.apply_profile
               data:
@@ -443,7 +445,7 @@
                 datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
         - conditions:
             - condition: template
-              value_template: "{{ target_command != last_requested_command and not (dwell_ok | bool) }}"
+              value_template: "{{ target_command != last_requested_command and not (write_allowed | bool) }}"
           sequence:
             - action: persistent_notification.create
               data:
