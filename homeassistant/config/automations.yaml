@@ -262,16 +262,21 @@
     Does NOT touch the chiller — that's managed by Chiller Pre-start (morning)
     and Chiller End-of-day Off (evening); they will catch up at their own
     schedules.
+
+    Trigger uses `event: homeassistant_started` (fires AFTER all integrations
+    finish setup) rather than `trigger: homeassistant`/`event: start` (which
+    fires too early — VT's template-number underlyings aren't yet resolvable
+    and our service calls got dropped). Fixed 2026-05-26 (T22).
   triggers:
-  - trigger: homeassistant
-    event: start
+  - trigger: event
+    event_type: homeassistant_started
   conditions: []
   actions:
-  # Wait for VT integration to finish init. Observed 2026-05-25: VT was still
-  # printing "not ready yet" 2+ min into startup on a cold container restart.
-  # 180 s covers that with margin.
+  # Short additional delay for VT's per-entity async init to settle after
+  # the homeassistant_started event. With the better trigger, 30 s is enough
+  # (vs the 180 s needed when using the too-early `event: start`).
   - delay:
-      seconds: 180
+      seconds: 30
   - variables:
       all_thermostats:
       - climate.fancoil_dagmar
