@@ -360,18 +360,27 @@
       common_comfort: "{{ states('sensor.summer_comfort_common') | float(26) }}"
       office_eco: "{{ states('sensor.summer_eco_office') | float(28) }}"
       common_eco: "{{ states('sensor.summer_eco_common') | float(29) }}"
+      # Office zones — comfort target driven by Summer Comfort Office sensor
+      # (24-27 °C scaled by outdoor). All zones using the office cool-mode
+      # presets (comfort_ac_temp 25) go here. CS and Meeting are eco-by-default
+      # but if manually pulled to comfort, the dynamic temp scales their target.
       office_zones:
       - climate.fancoil_dagmar
       - climate.fancoil_tania
       - climate.projects_1
-      - climate.fancoil_cs
+      - climate.projects_2
       - climate.fancoil_reception
-      common_zones:
+      - climate.fancoil_cs
       - climate.fancoil_meeting
+      # Common zones — comfort target driven by Summer Comfort Common sensor
+      # (25-28 °C scaled by outdoor). Only zones inheriting Central preset
+      # config (comfort_ac_temp 26) go here.
+      common_zones:
       - climate.fancoil_openspace
       - climate.fancoil_entrance
-      - climate.climate_mensa
-      - climate.projects_2
+      # Mensa is intentionally NOT in either list. It has its own static
+      # comfort_ac_temp = 26 °C per the user's "26 all day" preference,
+      # and lunch is handled by mensa_lunch_boost with boost_ac_temp = 24.5.
   - repeat:
       for_each: "{{ office_zones }}"
       sequence:
@@ -398,9 +407,12 @@
 - id: office_climate_schedule
   alias: Office Climate Schedule
   description: >
-    Offices (Dagmar, Tania, Projects, CS, Reception): comfort 22°C
-    during work hours, eco 18°C evening, frost 15°C overnight.
-    Workdays only. Pre-heat at 07:30.
+    Office workspaces (Dagmar, Tania, Projects 1, Projects 2, Reception):
+    comfort preset during work hours (target driven by cool-mode comfort_ac_temp
+    25 °C + Summer Dynamic Temperature Adjustment overrides every 30 min),
+    eco preset evening (target 27 °C), frost overnight (target 30 °C).
+    Workdays only. Pre-heat at 07:30. CS moved to own eco-by-default schedule
+    2026-05-26; Projects 2 moved here from common (treated as workspace).
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
@@ -408,7 +420,7 @@
       - climate.fancoil_dagmar
       - climate.fancoil_tania
       - climate.projects_1
-      - climate.fancoil_cs
+      - climate.projects_2
       - climate.fancoil_reception
       comfort_time: '08:00:00'
       eco_time: '17:00:00'
@@ -421,23 +433,45 @@
 - id: common_climate_schedule
   alias: Common Spaces Climate Schedule
   description: >
-    Common areas (OpenSpace, Entrance, Mensa): comfort 20°C during
-    work hours, eco 17°C evening, frost 15°C overnight.
-    Workdays only. Pre-heat at 07:30.
+    Common open areas (OpenSpace, Entrance): comfort preset during work hours
+    (target driven by cool-mode comfort_ac_temp 26 °C via Central config),
+    eco evening (28 °C), frost overnight (30 °C). Workdays only. Pre-heat 07:30.
+    Mensa moved to its own dedicated schedule 2026-05-26 (different times +
+    lunch boost). Projects 2 moved to office_climate_schedule (treated as
+    workspace).
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
       thermostats:
       - climate.fancoil_openspace
       - climate.fancoil_entrance
-      - climate.climate_mensa
-      - climate.projects_2
       comfort_time: '08:00:00'
       eco_time: '17:00:00'
       frost_time: '19:00:00'
       enable_preheat: true
       preheat_time: '07:30:00'
       comfort_preset: comfort
+      eco_preset: eco
+      frost_preset: frost
+- id: cs_climate_schedule
+  alias: CS Climate Schedule (eco-by-default)
+  description: >
+    Customer Service: eco-by-default. The "comfort" slot fires `eco` so the
+    room stays in eco preset (target 27 °C) from 07:30 through 17:00 unless
+    manually pulled to `comfort` (target 25 °C) when the room is actually used.
+    Same model as Meeting Room — moved here 2026-05-26 because CS isn't
+    occupied every day. Frost overnight.
+  use_blueprint:
+    path: custom/office_climate_schedule.yaml
+    input:
+      thermostats:
+      - climate.fancoil_cs
+      comfort_time: '08:00:00'
+      eco_time: '17:00:00'
+      frost_time: '19:00:00'
+      enable_preheat: true
+      preheat_time: '07:30:00'
+      comfort_preset: eco
       eco_preset: eco
       frost_preset: frost
 - id: meeting_climate_schedule
@@ -461,6 +495,73 @@
       comfort_preset: eco
       eco_preset: eco
       frost_preset: frost
+- id: mensa_climate_schedule
+  alias: Mensa Climate Schedule (comfort-all-day, frost overnight)
+  description: >
+    Mensa: comfort preset all day (target 26 °C via the dedicated cool-mode
+    comfort_ac_temp = 26 set per-VT — Mensa opts out of Central inherit so it
+    has its own boost = 24.5 for the lunch ramp-up). The "eco" slot fires
+    `comfort` so the room never drifts to a warmer target during occupied
+    hours. Frost preset overnight (19:00 → 30 °C). Lunch boost handled by
+    separate `mensa_lunch_boost` automation (12:00 → 14:00, target 24.5 °C).
+  use_blueprint:
+    path: custom/office_climate_schedule.yaml
+    input:
+      thermostats:
+      - climate.climate_mensa
+      comfort_time: '08:00:00'
+      eco_time: '17:00:00'
+      frost_time: '19:00:00'
+      enable_preheat: true
+      preheat_time: '07:30:00'
+      comfort_preset: comfort
+      # eco_preset = comfort means: at 17:00 the schedule re-applies comfort.
+      # Mensa stays at 26 °C through evening cleanup until frost at 19:00.
+      eco_preset: comfort
+      frost_preset: frost
+- id: mensa_lunch_boost
+  alias: Mensa Lunch Boost (12-14)
+  description: >
+    Mensa lunch break: stronger cooling from 12:00 to 14:00 to handle the
+    body-heat + cooking load. Sets the boost preset (cool-mode boost_ac_temp
+    for Mensa = 24.5 °C). At 14:00 sets back to comfort (26 °C).
+    Note: Mensa is EXEMPT from boost_auto_revert (which would otherwise
+    auto-cancel after 60 min), so this 2-hour window is honoured fully.
+  triggers:
+  - trigger: time
+    at: '12:00:00'
+    id: lunch_start
+  - trigger: time
+    at: '14:00:00'
+    id: lunch_end
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.workday_sensor
+    state: 'on'
+  - condition: state
+    entity_id: input_select.climate_season
+    state: summer
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: lunch_start
+      sequence:
+      - action: climate.set_preset_mode
+        target:
+          entity_id: climate.climate_mensa
+        data:
+          preset_mode: boost
+    - conditions:
+      - condition: trigger
+        id: lunch_end
+      sequence:
+      - action: climate.set_preset_mode
+        target:
+          entity_id: climate.climate_mensa
+        data:
+          preset_mode: comfort
+  mode: single
 - id: boost_auto_revert
   alias: Boost Auto-Revert
   description: >
@@ -468,6 +569,9 @@
     this automation converts it to a 60-minute timed preset and monitors
     for target temperature reached. Reverts to scheduled preset on
     whichever comes first: temp reached or 60 minutes elapsed.
+    EXEMPT: climate.climate_mensa — its lunch boost (12:00-14:00, via
+    mensa_lunch_boost automation) needs to run a full 2 hours and would
+    be incorrectly cut short by the 60-min auto-revert here.
   mode: parallel
   max: 9
   triggers:
@@ -481,7 +585,6 @@
     - climate.fancoil_meeting
     - climate.fancoil_openspace
     - climate.fancoil_entrance
-    - climate.climate_mensa
     - climate.projects_2
     attribute: preset_mode
     to: boost
