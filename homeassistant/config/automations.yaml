@@ -618,11 +618,13 @@
           Watchdog active until: {{ states('input_datetime.warehouse_cell_watchdog_until') }}
   mode: single
 - id: summer_dynamic_temp_adjust
-  alias: Summer Dynamic Temperature Adjustment
+  alias: Summer Dynamic Temperature Adjustment [DEPRECATED]
   description: >
-    Every 30 minutes in summer mode, adjusts cooling target temperatures
-    based on outdoor temperature. Prevents cold shock by scaling comfort
-    from 24°C (mild) to 27°C (hot outdoor).
+    DEPRECATED 2026-05-27. Per-zone VT presets are now fixed (offices comfort
+    25.5, common 27, eco 29, boost 24/25). Drift from this automation
+    overwriting comfort_temp every 30 min was the user-visible "presets keep
+    changing" symptom. initial_state false to keep disabled across reloads.
+  initial_state: false
   triggers:
   - trigger: time_pattern
     minutes: '/30'
