@@ -17,6 +17,7 @@ homeassistant/config/home-assistant.log.*
 # Runtime
 homeassistant/config/__pycache__/
 homeassistant/config/.cloud/
+homeassistant/config/.cache/
 homeassistant/config/tts/
 homeassistant/config/.HA_VERSION
 homeassistant/config/.ha_run.lock
