@@ -11,3 +11,10 @@ mensa_manual_override_count:
   initial: 0
   step: 1
   restore: true
+
+cs_manual_override_count:
+  name: "CS — Manual override count"
+  icon: mdi:hand-back-right
+  initial: 0
+  step: 1
+  restore: true

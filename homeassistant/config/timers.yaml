@@ -9,3 +9,9 @@ shade_mensa_manual_grace:
   icon: mdi:timer-sand
   duration: "00:30:00"
   restore: true
+
+shade_cs_manual_grace:
+  name: "Shade CS — Manual grace"
+  icon: mdi:timer-sand
+  duration: "00:30:00"
+  restore: true

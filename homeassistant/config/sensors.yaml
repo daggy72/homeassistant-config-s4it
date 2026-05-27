@@ -18,3 +18,11 @@
   time_window: "00:30:00"
   unit_time: h
   round: 2
+
+- platform: derivative
+  source: sensor.cs_temp
+  name: "CS Temp Rate"
+  unique_id: cs_temp_rate
+  time_window: "00:30:00"
+  unit_time: h
+  round: 2

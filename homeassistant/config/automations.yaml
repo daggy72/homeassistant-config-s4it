@@ -904,11 +904,11 @@
         target:
           entity_id: "{{ vt }}"
 - id: cs_sun_shade
-  alias: CS Sun Shade (Morning)
+  alias: CS Sun Shade (Morning) [DEPRECATED - replaced by sun_shade_cs blueprint]
   description: >
-    Lower CS shade to 30% when sunny during the ESE sun window (08:00-11:00).
-    Triggers at 08:00 and also when clouds clear during the window.
-    Raises at 11:00 when sun moves past, or if clouds roll in.
+    DEPRECATED 2026-05-27. Replaced by sun_shade_cs (intelligent_sun_shade blueprint).
+    Initial_state false so it stays disabled on reload; safe to delete later.
+  initial_state: false
   mode: single
   triggers:
   - trigger: time
@@ -967,6 +967,16 @@
         entity_id: cover.shellypro2cover_34987a47c9b0_cover_1
         attribute: current_position
         below: 50
+      # Skip the 11:00 open on warm/hot days — leave shade lowered through
+      # the afternoon to block ambient solar load. Clouds always open
+      # regardless of forecast.
+      - condition: or
+        conditions:
+        - condition: trigger
+          id: cloudy
+        - condition: numeric_state
+          entity_id: input_number.shade_today_outdoor_max_forecast
+          below: 28
       sequence:
       - action: cover.set_cover_position
         target:
@@ -1064,3 +1074,22 @@
       sun_azimuth_max: 240
       sun_elevation_min: 15
       room_label: "Mensa"
+
+- id: sun_shade_cs
+  alias: Sun Shade — CS
+  description: Intelligent sun shade for Customer Service (ESE, azimuth 90–150°)
+  use_blueprint:
+    path: custom/intelligent_sun_shade.yaml
+    input:
+      cover_entity: cover.shellypro2cover_34987a47c9b0_cover_1
+      room_climate_entity: climate.fancoil_cs
+      rate_sensor_entity: sensor.cs_temp_rate
+      manual_grace_timer: timer.shade_cs_manual_grace
+      manual_override_counter: counter.cs_manual_override_count
+      predictive_close_dt: input_datetime.cs_predictive_close_at
+      reactive_close_dt: input_datetime.cs_reactive_close_at
+      forecast_snapshot: input_number.cs_forecast_max_at_window_start
+      sun_azimuth_min: 90
+      sun_azimuth_max: 150
+      sun_elevation_min: 15
+      room_label: "CS"

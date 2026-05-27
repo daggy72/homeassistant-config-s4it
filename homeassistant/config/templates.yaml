@@ -584,6 +584,15 @@
       availability: >
         {{ state_attr('climate.climate_mensa', 'current_temperature') is not none }}
 
+    - name: "CS Temp"
+      unique_id: cs_temp
+      state: "{{ state_attr('climate.fancoil_cs', 'current_temperature') }}"
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+      availability: >
+        {{ state_attr('climate.fancoil_cs', 'current_temperature') is not none }}
+
     - name: "Outdoor Cloud Coverage"
       unique_id: outdoor_cloud_coverage
       state: "{{ state_attr('weather.forecast_home', 'cloud_coverage') }}"
