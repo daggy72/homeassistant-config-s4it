@@ -17,9 +17,9 @@ Use it for:
 | --- | --- | --- | --- |
 | InfluxDB | `HA_influxdb` | `http://127.0.0.1:8086` | Time-series storage |
 | Grafana internal | `HA_grafana_internal` | `http://127.0.0.1:13000` | Internal building dashboards |
-| Grafana WH1 | `HA_grafana_wh1` | `http://127.0.0.1:13001` | Customer-safe WH1 dashboard |
+| Grafana WH1 | `HA_grafana_wh1` | `http://10.0.10.10:13001` | Customer-safe WH1 dashboard |
 
-The Grafana ports are bound to loopback. Expose customer access through the reverse proxy or Cloudflare tunnel after local verification.
+The internal Grafana port is bound to loopback. WH1 Grafana is bound on host port `13001` so Cloudflare Tunnel can expose only that customer-safe Grafana instance.
 
 ## Buckets
 
@@ -102,3 +102,12 @@ docker exec HA_influxdb influx query \
 ```
 
 Then open the internal and WH1 Grafana dashboards through the local port or the configured reverse-proxy path.
+
+## Customer Route
+
+Cloudflare Tunnel routes are managed in the Cloudflare dashboard, not this repo. Add a public hostname such as `wh1.sales4.it` with:
+
+- Type: `HTTP`
+- URL: `10.0.10.10:13001`
+
+Give customers a Viewer account in `HA_grafana_wh1`, not the admin account.

@@ -62,7 +62,7 @@ services:
     depends_on:
       - influxdb
     ports:
-      - "127.0.0.1:13001:3000"
+      - "13001:3000"
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_WH1_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_WH1_ADMIN_PASSWORD}
