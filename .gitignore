@@ -33,6 +33,9 @@ homeassistant/config/deps/
 # Runtime data (not config)
 homeassistant/data/
 homeassistant/matter-data/
+influxdb2/
+grafana/internal-data/
+grafana/wh1-data/
 
 # ===========================
 # ESPHome
