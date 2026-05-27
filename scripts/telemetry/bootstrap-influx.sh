@@ -7,6 +7,7 @@ ORG="${INFLUXDB_ORG:-sales4it}"
 MAIN_BUCKET="${INFLUXDB_BUCKET:-ha_longterm}"
 CUSTOMER_BUCKET="${INFLUXDB_CUSTOMER_BUCKET:-wh1_customer}"
 TASK_FILE="${INFLUXDB_TASK_FILE:-/opt/influxdb/tasks/copy_wh1_customer.flux}"
+read -r -a DOCKER_CMD <<< "${DOCKER:-docker}"
 
 if [[ -z "${INFLUXDB_ADMIN_TOKEN:-}" ]]; then
   echo "INFLUXDB_ADMIN_TOKEN is required in the environment." >&2
@@ -14,7 +15,7 @@ if [[ -z "${INFLUXDB_ADMIN_TOKEN:-}" ]]; then
 fi
 
 docker_exec() {
-  docker exec "$CONTAINER" "$@"
+  "${DOCKER_CMD[@]}" exec "$CONTAINER" "$@"
 }
 
 influx_cmd() {
