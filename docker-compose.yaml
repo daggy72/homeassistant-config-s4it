@@ -35,6 +35,7 @@ services:
   grafana-internal:
     container_name: HA_grafana_internal
     image: grafana/grafana:13.0.1
+    user: "0"
     restart: unless-stopped
     depends_on:
       - influxdb
@@ -56,6 +57,7 @@ services:
   grafana-wh1:
     container_name: HA_grafana_wh1
     image: grafana/grafana:13.0.1
+    user: "0"
     restart: unless-stopped
     depends_on:
       - influxdb
