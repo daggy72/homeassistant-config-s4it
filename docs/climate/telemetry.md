@@ -16,8 +16,8 @@ Use it for:
 | Service | Container | Local URL | Purpose |
 | --- | --- | --- | --- |
 | InfluxDB | `HA_influxdb` | `http://127.0.0.1:8086` | Time-series storage |
-| Grafana internal | `HA_grafana_internal` | `http://127.0.0.1:3000` | Internal building dashboards |
-| Grafana WH1 | `HA_grafana_wh1` | `http://127.0.0.1:3001` | Customer-safe WH1 dashboard |
+| Grafana internal | `HA_grafana_internal` | `http://127.0.0.1:13000` | Internal building dashboards |
+| Grafana WH1 | `HA_grafana_wh1` | `http://127.0.0.1:13001` | Customer-safe WH1 dashboard |
 
 The Grafana ports are bound to loopback. Expose customer access through the reverse proxy or Cloudflare tunnel after local verification.
 
