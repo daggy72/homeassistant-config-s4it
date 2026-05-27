@@ -103,6 +103,12 @@ docker exec HA_influxdb influx query \
 
 Then open the internal and WH1 Grafana dashboards through the local port or the configured reverse-proxy path.
 
+## Recorder Backfill
+
+Use `scripts/telemetry/backfill-ha-recorder.py` to import retained Home Assistant recorder history into InfluxDB. Run it inside the Home Assistant container so SQLite reads `/config/home-assistant_v2.db` locally.
+
+The backfill preserves raw measurements. Known data-quality periods, such as the WH1 S1/S3 sensor-positioning and NECTOR control-oscillation period from 24-27 May 2026, are represented with `telemetry_quality` marker points and dashboard notes rather than edited temperature values.
+
 ## Customer Route
 
 Cloudflare Tunnel routes are managed in the Cloudflare dashboard, not this repo. Add a public hostname such as `wh1.sales4.it` with:

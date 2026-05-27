@@ -15,11 +15,21 @@
   },
   "panels": [
     {
+      "id": 6,
+      "type": "text",
+      "title": "Data Quality Note",
+      "gridPos": {"h": 3, "w": 24, "x": 0, "y": 0},
+      "options": {
+        "mode": "markdown",
+        "content": "Raw measurements are preserved. 24-27 May 2026 includes a known S1/S3 sensor-positioning and NECTOR control-oscillation period before the probes were repositioned."
+      }
+    },
+    {
       "id": 1,
       "type": "timeseries",
       "title": "Storage Temperature",
       "datasource": {"type": "influxdb", "uid": "influxdb-wh1-customer"},
-      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 0},
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 3},
       "fieldConfig": {"defaults": {"unit": "celsius"}, "overrides": []},
       "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "none"}},
       "targets": [
@@ -34,7 +44,7 @@
       "type": "state-timeline",
       "title": "Cooling / Heating Outputs",
       "datasource": {"type": "influxdb", "uid": "influxdb-wh1-customer"},
-      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 10},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 13},
       "fieldConfig": {"defaults": {}, "overrides": []},
       "options": {"mergeValues": true, "showValue": "auto", "alignValue": "left", "legend": {"displayMode": "list", "placement": "bottom"}},
       "targets": [
@@ -49,7 +59,7 @@
       "type": "stat",
       "title": "Latest S1",
       "datasource": {"type": "influxdb", "uid": "influxdb-wh1-customer"},
-      "gridPos": {"h": 5, "w": 8, "x": 0, "y": 18},
+      "gridPos": {"h": 5, "w": 8, "x": 0, "y": 21},
       "fieldConfig": {"defaults": {"unit": "celsius"}, "overrides": []},
       "options": {"reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "orientation": "auto", "textMode": "auto", "colorMode": "value", "graphMode": "area", "justifyMode": "auto"},
       "targets": [
@@ -64,7 +74,7 @@
       "type": "stat",
       "title": "Latest S3",
       "datasource": {"type": "influxdb", "uid": "influxdb-wh1-customer"},
-      "gridPos": {"h": 5, "w": 8, "x": 8, "y": 18},
+      "gridPos": {"h": 5, "w": 8, "x": 8, "y": 21},
       "fieldConfig": {"defaults": {"unit": "celsius"}, "overrides": []},
       "options": {"reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "orientation": "auto", "textMode": "auto", "colorMode": "value", "graphMode": "area", "justifyMode": "auto"},
       "targets": [
@@ -79,7 +89,7 @@
       "type": "stat",
       "title": "Latest Alarm State",
       "datasource": {"type": "influxdb", "uid": "influxdb-wh1-customer"},
-      "gridPos": {"h": 5, "w": 8, "x": 16, "y": 18},
+      "gridPos": {"h": 5, "w": 8, "x": 16, "y": 21},
       "fieldConfig": {"defaults": {}, "overrides": []},
       "options": {"reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "orientation": "auto", "textMode": "value", "colorMode": "value", "graphMode": "none", "justifyMode": "auto"},
       "targets": [

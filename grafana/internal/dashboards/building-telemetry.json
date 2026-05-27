@@ -90,6 +90,16 @@
       ]
     },
     {
+      "id": 7,
+      "type": "text",
+      "title": "WH1 Data Quality Note",
+      "gridPos": {"h": 3, "w": 24, "x": 0, "y": 24},
+      "options": {
+        "mode": "markdown",
+        "content": "Raw measurements are preserved. 24-27 May 2026 includes a known WH1 S1/S3 sensor-positioning and NECTOR control-oscillation period before the probes were repositioned. Use this period for diagnostics, not compliance interpretation."
+      }
+    },
+    {
       "id": 6,
       "type": "timeseries",
       "title": "Chiller Power",
