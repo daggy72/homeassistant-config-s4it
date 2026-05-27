@@ -47,7 +47,7 @@
     {
       "id": 3,
       "type": "timeseries",
-      "title": "Room EMA Temperatures",
+      "title": "Room Temperatures",
       "datasource": {"type": "influxdb", "uid": "influxdb-ha-longterm"},
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
       "fieldConfig": {"defaults": {"unit": "celsius"}, "overrides": []},
@@ -55,7 +55,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"ha_longterm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> filter(fn: (r) => r.entity_id =~ /(_ema_temperature|meeting_room_temp|mensa_temp)$/)\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")"
+          "query": "from(bucket: \"ha_longterm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> filter(fn: (r) => r.entity_id =~ /(_ema_temperature|meeting_room_temp|mensa_temp|shellywalldisplay_.*_temperature|t_h_sensor_with_external_probe.*temperature|reception_temperature|cc_up_sense_temperature|mt_meeting_room_up_sense_temperature|feels_like_temperature_dagmar)/ or r.entity_id =~ /^up_sense_temperature/)\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")"
         }
       ]
     },

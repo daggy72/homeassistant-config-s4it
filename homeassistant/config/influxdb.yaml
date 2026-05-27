@@ -48,6 +48,10 @@ include:
     - switch.wh1_defrost
     - sensor.outdoor_temperature
     - sensor.outdoor_cloud_coverage
+    - sensor.summer_comfort_office
+    - sensor.summer_comfort_common
+    - sensor.summer_eco_office
+    - sensor.summer_eco_common
     - input_number.shade_today_outdoor_max_forecast
     - input_number.shade_clouds_close_threshold
     - input_number.shade_clouds_open_threshold
@@ -85,6 +89,8 @@ include:
     - number.fancoil_entrance
     - number.fancoil_reception
   entity_globs:
+    - sensor.*temperature*
+    - sensor.*_temp
     - sensor.climate_mensa_*temperature*
     - sensor.climate_mensa_*power*
     - sensor.climate_mensa_*time
