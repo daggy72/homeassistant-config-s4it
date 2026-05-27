@@ -1,10 +1,3 @@
-api_version: 2
-ssl: false
-host: 127.0.0.1
-port: 8086
-token: !secret influxdb_ha_write_token
-organization: sales4it
-bucket: ha_longterm
 max_retries: 5
 precision: s
 tags:
