@@ -9,6 +9,8 @@ Version-controlled smart building automation stack for the Sales4Italy warehouse
 | Home Assistant | Core automation platform | `homeassistant/config/` |
 | ESPHome | ESP device firmware management | `esphome/config/` |
 | Matter Server | Matter/Thread device support | (no user config) |
+| InfluxDB | Long-term climate telemetry storage | `influxdb/` |
+| Grafana | Internal and WH1 customer telemetry dashboards | `grafana/` |
 
 ## What's Managed
 
@@ -16,6 +18,7 @@ Version-controlled smart building automation stack for the Sales4Italy warehouse
 - **Kitchen Appliances**: Scheduled on/off via smart plugs
 - **EV Charging**: Wallbox auto-unlock on geofence arrival
 - **Climate Presets**: Workday-aware Comfort/Eco/Frost modes per zone
+- **Telemetry**: InfluxDB/Grafana logging for WH1, fancoils, chiller, and weather context
 - **ESP Devices**: Custom firmware for ESP-based sensors and controllers
 
 ## Hardware
@@ -55,3 +58,4 @@ docker compose up -d
 - [Tech Stack](agent-os/product/tech-stack.md)
 - [Roadmap](agent-os/product/roadmap.md)
 - [Architecture Decisions](agent-os/product/decisions.md)
+- [Climate Telemetry Stack](docs/climate/telemetry.md)

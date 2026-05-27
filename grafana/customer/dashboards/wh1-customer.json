@@ -1,0 +1,93 @@
+{
+  "uid": "wh1-customer-monitor",
+  "title": "Temperature Controlled Storage WH1",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "tags": ["wh1", "customer", "storage"],
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Storage Temperature",
+      "datasource": {"type": "influxdb", "uid": "influxdb-wh1-customer"},
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 0},
+      "fieldConfig": {"defaults": {"unit": "celsius"}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"wh1_customer\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> filter(fn: (r) => r.entity_id == \"wh1_temperature\" or r.entity_id == \"wh1_probe_s3_temperature\" or r.entity_id == \"warehouse_cell_min_temperature\" or r.entity_id == \"warehouse_cell_max_temperature\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "state-timeline",
+      "title": "Cooling / Heating Outputs",
+      "datasource": {"type": "influxdb", "uid": "influxdb-wh1-customer"},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 10},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "options": {"mergeValues": true, "showValue": "auto", "alignValue": "left", "legend": {"displayMode": "list", "placement": "bottom"}},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"wh1_customer\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> filter(fn: (r) => r._measurement == \"binary_sensor.wh1_compressor\" or r._measurement == \"binary_sensor.wh1_fan\" or r._measurement == \"binary_sensor.wh1_hot_resistance\" or r._measurement == \"binary_sensor.wh1_defrost_output\" or r._measurement == \"binary_sensor.wh1_alarm_relay\")\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])\n  |> yield(name: \"states\")"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Latest S1",
+      "datasource": {"type": "influxdb", "uid": "influxdb-wh1-customer"},
+      "gridPos": {"h": 5, "w": 8, "x": 0, "y": 18},
+      "fieldConfig": {"defaults": {"unit": "celsius"}, "overrides": []},
+      "options": {"reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "orientation": "auto", "textMode": "auto", "colorMode": "value", "graphMode": "area", "justifyMode": "auto"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"wh1_customer\")\n  |> range(start: -6h)\n  |> filter(fn: (r) => r._field == \"value\" and r.entity_id == \"wh1_temperature\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Latest S3",
+      "datasource": {"type": "influxdb", "uid": "influxdb-wh1-customer"},
+      "gridPos": {"h": 5, "w": 8, "x": 8, "y": 18},
+      "fieldConfig": {"defaults": {"unit": "celsius"}, "overrides": []},
+      "options": {"reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "orientation": "auto", "textMode": "auto", "colorMode": "value", "graphMode": "area", "justifyMode": "auto"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"wh1_customer\")\n  |> range(start: -6h)\n  |> filter(fn: (r) => r._field == \"value\" and r.entity_id == \"wh1_probe_s3_temperature\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Latest Alarm State",
+      "datasource": {"type": "influxdb", "uid": "influxdb-wh1-customer"},
+      "gridPos": {"h": 5, "w": 8, "x": 16, "y": 18},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "options": {"reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}, "orientation": "auto", "textMode": "value", "colorMode": "value", "graphMode": "none", "justifyMode": "auto"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"wh1_customer\")\n  |> range(start: -6h)\n  |> filter(fn: (r) => r._field == \"value\" and (r.entity_id == \"wh1_alarm\" or r._measurement == \"binary_sensor.wh1_alarm_relay\"))\n  |> last()"
+        }
+      ]
+    }
+  ]
+}

@@ -13,6 +13,67 @@ services:
     privileged: true
     network_mode: host
 
+  influxdb:
+    container_name: HA_influxdb
+    image: influxdb:2.7
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_ADMIN_USER}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_ADMIN_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG:-sales4it}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET:-ha_longterm}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_ADMIN_TOKEN}
+      DOCKER_INFLUXDB_INIT_RETENTION: ${INFLUXDB_RETENTION:-0}
+    volumes:
+      - ${DOCKER_BASE:-/volume1/docker/homeassistant}/influxdb2/data:/var/lib/influxdb2
+      - ${DOCKER_BASE:-/volume1/docker/homeassistant}/influxdb2/config:/etc/influxdb2
+      - ./influxdb/tasks:/opt/influxdb/tasks:ro
+
+  grafana-internal:
+    container_name: HA_grafana_internal
+    image: grafana/grafana:13.0.1
+    restart: unless-stopped
+    depends_on:
+      - influxdb
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      INFLUXDB_ORG: ${INFLUXDB_ORG:-sales4it}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET:-ha_longterm}
+      INFLUXDB_GRAFANA_READ_TOKEN: ${INFLUXDB_GRAFANA_READ_TOKEN:-}
+    volumes:
+      - ${DOCKER_BASE:-/volume1/docker/homeassistant}/grafana/internal-data:/var/lib/grafana
+      - ./grafana/internal/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/internal/dashboards:/var/lib/grafana/dashboards:ro
+
+  grafana-wh1:
+    container_name: HA_grafana_wh1
+    image: grafana/grafana:13.0.1
+    restart: unless-stopped
+    depends_on:
+      - influxdb
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_WH1_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_WH1_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      INFLUXDB_ORG: ${INFLUXDB_ORG:-sales4it}
+      INFLUXDB_CUSTOMER_BUCKET: ${INFLUXDB_CUSTOMER_BUCKET:-wh1_customer}
+      INFLUXDB_WH1_READ_TOKEN: ${INFLUXDB_WH1_READ_TOKEN:-}
+    volumes:
+      - ${DOCKER_BASE:-/volume1/docker/homeassistant}/grafana/wh1-data:/var/lib/grafana
+      - ./grafana/customer/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/customer/dashboards:/var/lib/grafana/dashboards:ro
+
   matter-server:
     image: ghcr.io/home-assistant-libs/python-matter-server:stable
     container_name: HA_matter-server

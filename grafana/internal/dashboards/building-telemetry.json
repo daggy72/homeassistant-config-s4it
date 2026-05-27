@@ -1,0 +1,108 @@
+{
+  "uid": "s4it-building-telemetry",
+  "title": "S4IT Building Climate Telemetry",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "tags": ["home-assistant", "climate", "influxdb"],
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "WH1 Temperatures",
+      "datasource": {"type": "influxdb", "uid": "influxdb-ha-longterm"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "fieldConfig": {"defaults": {"unit": "celsius"}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"ha_longterm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> filter(fn: (r) => r.entity_id == \"wh1_temperature\" or r.entity_id == \"wh1_probe_s3_temperature\" or r.entity_id == \"wh1_setpoint\" or r.entity_id == \"warehouse_cell_min_temperature\" or r.entity_id == \"warehouse_cell_max_temperature\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "state-timeline",
+      "title": "WH1 Outputs",
+      "datasource": {"type": "influxdb", "uid": "influxdb-ha-longterm"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "options": {"mergeValues": true, "showValue": "auto", "alignValue": "left", "legend": {"displayMode": "list", "placement": "bottom"}},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"ha_longterm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> filter(fn: (r) => r._measurement == \"binary_sensor.wh1_compressor\" or r._measurement == \"binary_sensor.wh1_fan\" or r._measurement == \"binary_sensor.wh1_hot_resistance\" or r._measurement == \"binary_sensor.wh1_defrost_output\" or r._measurement == \"binary_sensor.wh1_alarm_relay\")\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])\n  |> yield(name: \"states\")"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Room EMA Temperatures",
+      "datasource": {"type": "influxdb", "uid": "influxdb-ha-longterm"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "fieldConfig": {"defaults": {"unit": "celsius"}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"ha_longterm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> filter(fn: (r) => r.entity_id =~ /(_ema_temperature|meeting_room_temp|mensa_temp)$/)\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Fancoil Valve / Power %",
+      "datasource": {"type": "influxdb", "uid": "influxdb-ha-longterm"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"ha_longterm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> filter(fn: (r) => r.entity_id =~ /(_valve_open_percent|_power_percent|^fancoil_demand_)/)\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Outside Context",
+      "datasource": {"type": "influxdb", "uid": "influxdb-ha-longterm"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"ha_longterm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> filter(fn: (r) => r.entity_id == \"outdoor_temperature\" or r.entity_id == \"outdoor_cloud_coverage\" or r.entity_id == \"shade_today_outdoor_max_forecast\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Chiller Power",
+      "datasource": {"type": "influxdb", "uid": "influxdb-ha-longterm"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "fieldConfig": {"defaults": {"unit": "watt"}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"ha_longterm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._field == \"value\")\n  |> filter(fn: (r) => r.entity_id =~ /^shellypro4pm_ece334eaf568_switch_.*_power$/)\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")"
+        }
+      ]
+    }
+  ]
+}

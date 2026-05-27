@@ -20,6 +20,8 @@ logger:
   logs:
     custom_components.nector200: debug
 
+influxdb: !include influxdb.yaml
+
 http:
   use_x_forwarded_for: true
   trusted_proxies:

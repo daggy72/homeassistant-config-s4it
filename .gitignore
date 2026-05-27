@@ -61,6 +61,7 @@ __pycache__/
 
 # Worktrees
 .worktrees/
+.superpowers/
 
 # Environment
 .env

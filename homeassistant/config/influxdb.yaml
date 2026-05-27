@@ -1,0 +1,120 @@
+api_version: 2
+ssl: false
+host: 127.0.0.1
+port: 8086
+token: !secret influxdb_ha_write_token
+organization: sales4it
+bucket: ha_longterm
+max_retries: 5
+precision: s
+tags:
+  source: homeassistant
+  site: cassano
+tags_attributes:
+  - friendly_name
+ignore_attributes:
+  - attribution
+  - assumed_state
+  - editable
+  - options
+  - restored
+  - supported_features
+include:
+  entities:
+    - input_number.warehouse_cell_min_temperature
+    - input_number.warehouse_cell_max_temperature
+    - input_boolean.warehouse_cell_manual_hold
+    - input_select.climate_season
+    - input_text.warehouse_cell_last_requested_profile
+    - input_text.warehouse_cell_last_requested_command
+    - input_datetime.warehouse_cell_last_profile_command
+    - sensor.wh1_temperature
+    - sensor.wh1_probe_s3_temperature
+    - sensor.wh1_setpoint
+    - sensor.wh1_alarm
+    - sensor.wh1_recording
+    - sensor.wh1_last_applied_profile
+    - sensor.wh1_last_profile_write
+    - sensor.wh1_last_profile_error
+    - binary_sensor.wh1_compressor
+    - binary_sensor.wh1_defrost_output
+    - binary_sensor.wh1_fan
+    - binary_sensor.wh1_light_output
+    - binary_sensor.wh1_alarm_relay
+    - binary_sensor.wh1_auxiliary_relay
+    - binary_sensor.wh1_hot_resistance
+    - climate.wh1_temperature_control
+    - switch.wh1_light
+    - switch.wh1_defrost
+    - sensor.outdoor_temperature
+    - sensor.outdoor_cloud_coverage
+    - input_number.shade_today_outdoor_max_forecast
+    - input_number.shade_clouds_close_threshold
+    - input_number.shade_clouds_open_threshold
+    - weather.forecast_home
+    - weather.cm1
+    - switch.shellypro4pm_ece334eaf568_switch_2
+    - sensor.shellypro4pm_ece334eaf568_switch_2_power
+    - climate.climate_mensa
+    - climate.fancoil_cs
+    - climate.fancoil_dagmar
+    - climate.fancoil_entrance
+    - climate.fancoil_meeting
+    - climate.fancoil_openspace
+    - climate.fancoil_reception
+    - climate.fancoil_tania
+    - climate.projects_1
+    - climate.projects_2
+    - fan.fancoil_03_fancoil
+    - fan.fancoil_04_fancoil
+    - fan.fancoil_05_fancoil
+    - fan.fancoil_06_fancoil
+    - fan.fancoil_07_fancoil
+    - fan.fancoil_08_fancoil
+    - fan.fancoil_09_fancoil
+    - fan.fancoil_10_fancoil
+    - fan.fancoil_dagmar_outlet
+    - number.fancoil_mensa_1
+    - number.fancoil_projects_1
+    - number.fancoil_projects_2
+    - number.fancoil_dagmar
+    - number.fancoil_tania
+    - number.fancoil_cs
+    - number.fancoil_meeting
+    - number.fancoil_openspace
+    - number.fancoil_entrance
+    - number.fancoil_reception
+  entity_globs:
+    - sensor.climate_mensa_*temperature*
+    - sensor.climate_mensa_*power*
+    - sensor.climate_mensa_*time
+    - sensor.climate_mensa_*energy
+    - sensor.climate_mensa_*valve_open_percent
+    - sensor.projects_*_ema_temperature
+    - sensor.projects_*_temperature_slope
+    - sensor.projects_*_power_percent
+    - sensor.projects_*_valve_open_percent
+    - sensor.projects_*_on_time
+    - sensor.projects_*_off_time
+    - sensor.projects_*_mean_power_cycle
+    - sensor.projects_*_energy
+    - sensor.fancoil_*_ema_temperature
+    - sensor.fancoil_*_temperature_slope
+    - sensor.fancoil_*_power_percent
+    - sensor.fancoil_*_valve_open_percent
+    - sensor.fancoil_*_on_time
+    - sensor.fancoil_*_off_time
+    - sensor.fancoil_*_mean_power_cycle
+    - sensor.fancoil_*_energy
+    - sensor.fancoil_demand_*
+    - binary_sensor.climate_mensa_*state
+    - binary_sensor.climate_mensa_*bypass
+    - binary_sensor.projects_*_safety_state
+    - binary_sensor.projects_*_window_bypass
+    - binary_sensor.fancoil_*_safety_state
+    - binary_sensor.fancoil_*_window_bypass
+    - binary_sensor.fancoil_*_presence_state
+    - binary_sensor.fancoil_*_motion_state
+    - sensor.shellypro4pm_ece334eaf568_switch_*_power
+    - sensor.shellypro4pm_ece334eaf568_switch_*_energy
+    - switch.shellypro4pm_ece334eaf568_switch_*
