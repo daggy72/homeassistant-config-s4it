@@ -58,7 +58,10 @@ ZONE_PRESETS = {
     "Fancoil Dagmar": OFFICE,
     "Fancoil Tania": OFFICE,
     "Projects 1": OFFICE,
-    "Projects 2": OFFICE,
+    # Projects 2 is unoccupied and shares the Mensa sensor, so use the common-room
+    # preset (comfort 27 / eco 29) rather than office (25.5 / 29). Flip back to
+    # OFFICE if/when occupancy returns. See memory: projects2-unoccupied-tracks-mensa.
+    "Projects 2": COMMON,
     "Fancoil CS": OFFICE,
     "Fancoil Meeting": OFFICE,
     "Fancoil Reception": OFFICE,
