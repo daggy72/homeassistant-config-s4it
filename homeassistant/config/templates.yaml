@@ -604,7 +604,9 @@
 
     # ---------------------------------------------------------------
     # Fancoil VT demand (%) — for dashboard chips / section badges.
-    # Reads `on_percent` from the Versatile Thermostat climate entity.
+    # Reads `power_percent` (0-100) from the Versatile Thermostat climate
+    # entity. Note: VT also exposes `on_percent` as the same value scaled 0-1
+    # (fraction). Always use `power_percent` here for 0-100 semantics.
     # New-fancoil rooms (Mensa, Dagmar, Projects 1, Projects 2) already
     # expose demand via `number.fancoil_<room>` template numbers above —
     # bind those directly. The six sensors below cover the OLD ESP32-
@@ -619,7 +621,7 @@
         {% if states('climate.fancoil_openspace') in ['off', 'unavailable', 'unknown', 'none'] %}
           0
         {% else %}
-          {{ (state_attr('climate.fancoil_openspace', 'on_percent') | float(0)) | round(0) }}
+          {{ (state_attr('climate.fancoil_openspace', 'power_percent') | float(0)) | round(0) }}
         {% endif %}
       availability: >
         {{ states('climate.fancoil_openspace') not in ['unavailable', 'unknown', 'none'] }}
@@ -633,7 +635,7 @@
         {% if states('climate.fancoil_cs') in ['off', 'unavailable', 'unknown', 'none'] %}
           0
         {% else %}
-          {{ (state_attr('climate.fancoil_cs', 'on_percent') | float(0)) | round(0) }}
+          {{ (state_attr('climate.fancoil_cs', 'power_percent') | float(0)) | round(0) }}
         {% endif %}
       availability: >
         {{ states('climate.fancoil_cs') not in ['unavailable', 'unknown', 'none'] }}
@@ -647,7 +649,7 @@
         {% if states('climate.fancoil_meeting') in ['off', 'unavailable', 'unknown', 'none'] %}
           0
         {% else %}
-          {{ (state_attr('climate.fancoil_meeting', 'on_percent') | float(0)) | round(0) }}
+          {{ (state_attr('climate.fancoil_meeting', 'power_percent') | float(0)) | round(0) }}
         {% endif %}
       availability: >
         {{ states('climate.fancoil_meeting') not in ['unavailable', 'unknown', 'none'] }}
@@ -661,7 +663,7 @@
         {% if states('climate.fancoil_tania') in ['off', 'unavailable', 'unknown', 'none'] %}
           0
         {% else %}
-          {{ (state_attr('climate.fancoil_tania', 'on_percent') | float(0)) | round(0) }}
+          {{ (state_attr('climate.fancoil_tania', 'power_percent') | float(0)) | round(0) }}
         {% endif %}
       availability: >
         {{ states('climate.fancoil_tania') not in ['unavailable', 'unknown', 'none'] }}
@@ -675,7 +677,7 @@
         {% if states('climate.fancoil_reception') in ['off', 'unavailable', 'unknown', 'none'] %}
           0
         {% else %}
-          {{ (state_attr('climate.fancoil_reception', 'on_percent') | float(0)) | round(0) }}
+          {{ (state_attr('climate.fancoil_reception', 'power_percent') | float(0)) | round(0) }}
         {% endif %}
       availability: >
         {{ states('climate.fancoil_reception') not in ['unavailable', 'unknown', 'none'] }}
@@ -689,7 +691,7 @@
         {% if states('climate.fancoil_entrance') in ['off', 'unavailable', 'unknown', 'none'] %}
           0
         {% else %}
-          {{ (state_attr('climate.fancoil_entrance', 'on_percent') | float(0)) | round(0) }}
+          {{ (state_attr('climate.fancoil_entrance', 'power_percent') | float(0)) | round(0) }}
         {% endif %}
       availability: >
         {{ states('climate.fancoil_entrance') not in ['unavailable', 'unknown', 'none'] }}
