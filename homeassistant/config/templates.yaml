@@ -601,3 +601,95 @@
       state_class: measurement
       availability: >
         {{ state_attr('weather.forecast_home', 'cloud_coverage') is not none }}
+
+    # ---------------------------------------------------------------
+    # Fancoil VT demand (%) — for dashboard chips / section badges.
+    # Reads `on_percent` from the Versatile Thermostat climate entity.
+    # New-fancoil rooms (Mensa, Dagmar, Projects 1, Projects 2) already
+    # expose demand via `number.fancoil_<room>` template numbers above —
+    # bind those directly. The six sensors below cover the OLD ESP32-
+    # relay fancoil rooms that don't have a number entity.
+    # ---------------------------------------------------------------
+    - name: "Fancoil OpenSpace Demand"
+      unique_id: fancoil_openspace_demand
+      unit_of_measurement: "%"
+      icon: mdi:fan
+      state_class: measurement
+      state: >
+        {% if states('climate.fancoil_openspace') in ['off', 'unavailable', 'unknown', 'none'] %}
+          0
+        {% else %}
+          {{ (state_attr('climate.fancoil_openspace', 'on_percent') | float(0)) | round(0) }}
+        {% endif %}
+      availability: >
+        {{ states('climate.fancoil_openspace') not in ['unavailable', 'unknown', 'none'] }}
+
+    - name: "Fancoil CS Demand"
+      unique_id: fancoil_cs_demand
+      unit_of_measurement: "%"
+      icon: mdi:fan
+      state_class: measurement
+      state: >
+        {% if states('climate.fancoil_cs') in ['off', 'unavailable', 'unknown', 'none'] %}
+          0
+        {% else %}
+          {{ (state_attr('climate.fancoil_cs', 'on_percent') | float(0)) | round(0) }}
+        {% endif %}
+      availability: >
+        {{ states('climate.fancoil_cs') not in ['unavailable', 'unknown', 'none'] }}
+
+    - name: "Fancoil Meeting Demand"
+      unique_id: fancoil_meeting_demand
+      unit_of_measurement: "%"
+      icon: mdi:fan
+      state_class: measurement
+      state: >
+        {% if states('climate.fancoil_meeting') in ['off', 'unavailable', 'unknown', 'none'] %}
+          0
+        {% else %}
+          {{ (state_attr('climate.fancoil_meeting', 'on_percent') | float(0)) | round(0) }}
+        {% endif %}
+      availability: >
+        {{ states('climate.fancoil_meeting') not in ['unavailable', 'unknown', 'none'] }}
+
+    - name: "Fancoil Tania Demand"
+      unique_id: fancoil_tania_demand
+      unit_of_measurement: "%"
+      icon: mdi:fan
+      state_class: measurement
+      state: >
+        {% if states('climate.fancoil_tania') in ['off', 'unavailable', 'unknown', 'none'] %}
+          0
+        {% else %}
+          {{ (state_attr('climate.fancoil_tania', 'on_percent') | float(0)) | round(0) }}
+        {% endif %}
+      availability: >
+        {{ states('climate.fancoil_tania') not in ['unavailable', 'unknown', 'none'] }}
+
+    - name: "Fancoil Reception Demand"
+      unique_id: fancoil_reception_demand
+      unit_of_measurement: "%"
+      icon: mdi:fan
+      state_class: measurement
+      state: >
+        {% if states('climate.fancoil_reception') in ['off', 'unavailable', 'unknown', 'none'] %}
+          0
+        {% else %}
+          {{ (state_attr('climate.fancoil_reception', 'on_percent') | float(0)) | round(0) }}
+        {% endif %}
+      availability: >
+        {{ states('climate.fancoil_reception') not in ['unavailable', 'unknown', 'none'] }}
+
+    - name: "Fancoil Entrance Demand"
+      unique_id: fancoil_entrance_demand
+      unit_of_measurement: "%"
+      icon: mdi:fan
+      state_class: measurement
+      state: >
+        {% if states('climate.fancoil_entrance') in ['off', 'unavailable', 'unknown', 'none'] %}
+          0
+        {% else %}
+          {{ (state_attr('climate.fancoil_entrance', 'on_percent') | float(0)) | round(0) }}
+        {% endif %}
+      availability: >
+        {{ states('climate.fancoil_entrance') not in ['unavailable', 'unknown', 'none'] }}
