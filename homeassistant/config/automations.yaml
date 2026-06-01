@@ -1077,6 +1077,127 @@
       sun_elevation_min: 15
       room_label: "Mensa"
 
+- id: fancoil_0_10v_min_floor_cool
+  alias: Fancoil 0-10V — 35% maintain floor (cool mode)
+  description: >-
+    Shelly 0-10V fancoils (Dagmar / Projects 1 / Projects 2 / Mensa) use
+    `thermostat_over_valve` which writes the VT demand (0-100%) into the
+    template `number.fancoil_*`, which in turn drives the Shelly light
+    brightness. When VT reaches setpoint it writes 0, producing a 0↔100
+    bang-bang cycle.
+
+    While the parent VT is in `cool` mode AND the room is still warm
+    (current_temperature ≥ target − 0.3 °C), clamp the number to ≥35 — a
+    quiet maintain speed that holds temp without bang-bang.
+
+    The "still warm" gate prevents over-cooling once the room has actually
+    dropped below setpoint.
+  mode: parallel
+  max: 8
+  trigger:
+    - platform: state
+      entity_id:
+        - number.fancoil_dagmar
+        - number.fancoil_projects_1
+        - number.fancoil_projects_2
+        - number.fancoil_mensa_1
+  variables:
+    vt_map:
+      number.fancoil_dagmar: climate.fancoil_dagmar
+      number.fancoil_projects_1: climate.projects_1
+      number.fancoil_projects_2: climate.projects_2
+      number.fancoil_mensa_1: climate.climate_mensa
+    floor_pct: 35
+    target_number: "{{ trigger.entity_id }}"
+    vt_entity: "{{ vt_map[trigger.entity_id] }}"
+    vt_mode: "{{ states(vt_entity) }}"
+    new_value_raw: "{{ trigger.to_state.state }}"
+    cur_temp: "{{ state_attr(vt_entity, 'current_temperature') | float(99) }}"
+    set_temp: "{{ state_attr(vt_entity, 'temperature') | float(0) }}"
+  condition:
+    - condition: template
+      value_template: "{{ vt_mode == 'cool' }}"
+    - condition: template
+      value_template: "{{ new_value_raw not in ['unknown','unavailable','None'] }}"
+    - condition: template
+      value_template: "{{ (new_value_raw | float(0)) < floor_pct }}"
+    - condition: template
+      value_template: "{{ cur_temp >= (set_temp - 0.3) }}"
+  action:
+    - service: number.set_value
+      target:
+        entity_id: "{{ target_number }}"
+      data:
+        value: "{{ floor_pct }}"
+
+- id: fancoil_0_10v_cool_mode_engage
+  alias: Fancoil 0-10V — engage 35% on cool entry / above setpoint
+  description: >-
+    Companion to fancoil_0_10v_min_floor_cool. Fires when (a) a VT switches
+    into cool mode or (b) room temperature rises and crosses back above
+    setpoint while VT is already in cool. In both cases, if the underlying
+    number is below 35%, push it up immediately so cooling resumes without
+    waiting for the VT's next regulation tick.
+  mode: parallel
+  max: 4
+  trigger:
+    - platform: state
+      entity_id:
+        - climate.fancoil_dagmar
+        - climate.projects_1
+        - climate.projects_2
+        - climate.climate_mensa
+      to: cool
+      id: vt_enters_cool
+    - platform: template
+      value_template: >-
+        {% set vts = ['climate.fancoil_dagmar','climate.projects_1','climate.projects_2','climate.climate_mensa'] %}
+        {% set warm = namespace(any=false) %}
+        {% for v in vts %}
+          {% set ct = state_attr(v,'current_temperature') | float(0) %}
+          {% set st = state_attr(v,'temperature') | float(0) %}
+          {% if states(v) == 'cool' and ct >= (st - 0.3) %}
+            {% set warm.any = true %}
+          {% endif %}
+        {% endfor %}
+        {{ warm.any }}
+      id: room_warm_again
+  variables:
+    climate_to_number:
+      climate.fancoil_dagmar: number.fancoil_dagmar
+      climate.projects_1: number.fancoil_projects_1
+      climate.projects_2: number.fancoil_projects_2
+      climate.climate_mensa: number.fancoil_mensa_1
+    vts:
+      - climate.fancoil_dagmar
+      - climate.projects_1
+      - climate.projects_2
+      - climate.climate_mensa
+    floor_pct: 35
+  action:
+    - delay: "00:00:03"
+    - repeat:
+        for_each: "{{ vts }}"
+        sequence:
+          - variables:
+              vt_entity: "{{ repeat.item }}"
+              target_number: "{{ climate_to_number[vt_entity] }}"
+              vt_mode: "{{ states(vt_entity) }}"
+              cur_temp: "{{ state_attr(vt_entity,'current_temperature') | float(99) }}"
+              set_temp: "{{ state_attr(vt_entity,'temperature') | float(0) }}"
+              cur_val: "{{ states(target_number) }}"
+          - condition: template
+            value_template: >-
+              {{ vt_mode == 'cool'
+                 and cur_temp >= (set_temp - 0.3)
+                 and cur_val not in ['unknown','unavailable','None']
+                 and (cur_val | float(0)) < floor_pct }}
+          - service: number.set_value
+            target:
+              entity_id: "{{ target_number }}"
+            data:
+              value: "{{ floor_pct }}"
+
 - id: sun_shade_cs
   alias: Sun Shade — CS
   description: Intelligent sun shade for Customer Service (ESE, azimuth 90–150°)
