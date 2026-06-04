@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-Update Versatile Thermostat cool-mode preset temperatures in HA storage.
+Update Versatile Thermostat cool-mode preset temperatures + motion config
+in HA storage.
 
 Run on the NAS as root (the docker-mounted .storage is owned by the HA
 container UID, so sudo is required):
 
-    cd /volume1/docker/PRODUCTION/homeassistant
+    cd /volume1/docker/homeassistant
     docker compose stop homeassistant
     sudo python3 scripts/update_vt_presets.py
     docker compose start homeassistant
@@ -15,13 +16,13 @@ patching, and refuses to run if HA is still up (lock file present).
 
 Target preset values (after 2026-05-27 simplification):
 
-    Offices (Dagmar, Tania, CS, Meeting, Projects 1, Projects 2, Reception):
+    Offices (Dagmar, Tania, CS, Meeting, Projects 1, Reception):
         comfort_ac_temp = 25.5
         eco_ac_temp     = 29.0
         boost_ac_temp   = 24.0
         frost_ac_temp   = 30.0
 
-    Common  (OpenSpace, Entrance):
+    Common  (OpenSpace, Entrance, Projects 2):
         comfort_ac_temp = 27.0
         eco_ac_temp     = 29.0
         boost_ac_temp   = 25.0
@@ -32,6 +33,12 @@ Target preset values (after 2026-05-27 simplification):
         eco_ac_temp     = 29.0
         boost_ac_temp   = 24.5
         frost_ac_temp   = 30.0
+
+Motion-override config (added 2026-06-04) for Meeting / CS / Reception:
+    use_motion_feature=True, motion_preset=comfort, no_motion_preset=eco,
+    motion_delay=30s on, motion_off_delay=300s (5 min) off.
+    activity_ac_temp set to match comfort so the manual activity preset
+    also pulls cooling.
 
 The Summer Dynamic Temperature Adjustment automation is disabled separately
 in automations.yaml so these fixed values stick.
@@ -70,6 +77,43 @@ ZONE_PRESETS = {
     "Climate Mensa": MENSA,
 }
 
+# Motion-override config: when motion fires, VT swaps preset to motion_preset
+# (comfort); when motion clears for motion_off_delay seconds, VT swaps to
+# no_motion_preset (eco). Applied per-VT (use_motion_central_config=False).
+# Also sets activity_ac_temp so the manual `activity` preset pulls cooling.
+MOTION_OVERRIDE = {
+    "Fancoil Meeting": {
+        "use_motion_feature": True,
+        "use_motion_central_config": False,
+        "motion_sensor_entity_id": "binary_sensor.mt_meeting_room_up_sense_motion",
+        "motion_delay": 30,
+        "motion_off_delay": 300,
+        "motion_preset": "comfort",
+        "no_motion_preset": "eco",
+        "activity_ac_temp": 25.5,
+    },
+    "Fancoil CS": {
+        "use_motion_feature": True,
+        "use_motion_central_config": False,
+        "motion_sensor_entity_id": "binary_sensor.cc_up_sense_motion",
+        "motion_delay": 30,
+        "motion_off_delay": 300,
+        "motion_preset": "comfort",
+        "no_motion_preset": "eco",
+        "activity_ac_temp": 25.5,
+    },
+    "Fancoil Reception": {
+        "use_motion_feature": True,
+        "use_motion_central_config": False,
+        "motion_sensor_entity_id": "binary_sensor.reception_up_sense_motion",
+        "motion_delay": 30,
+        "motion_off_delay": 300,
+        "motion_preset": "comfort",
+        "no_motion_preset": "eco",
+        "activity_ac_temp": 25.5,
+    },
+}
+
 
 def main() -> int:
     if not STORAGE_PATH.exists():
@@ -88,27 +132,35 @@ def main() -> int:
     entries = data["data"]["entries"]
     matched: list[str] = []
     missing = set(ZONE_PRESETS)
+    motion_matched: list[str] = []
+    motion_missing = set(MOTION_OVERRIDE)
 
     for entry in entries:
         if entry.get("domain") != "versatile_thermostat":
             continue
         title = entry.get("title", "")
-        if title not in ZONE_PRESETS:
-            continue
-        targets = ZONE_PRESETS[title]
         data_block = entry.setdefault("data", {})
-        for key, value in targets.items():
-            data_block[key] = value
-        matched.append(title)
-        missing.discard(title)
+        if title in ZONE_PRESETS:
+            for key, value in ZONE_PRESETS[title].items():
+                data_block[key] = value
+            matched.append(title)
+            missing.discard(title)
+        if title in MOTION_OVERRIDE:
+            for key, value in MOTION_OVERRIDE[title].items():
+                data_block[key] = value
+            motion_matched.append(title)
+            motion_missing.discard(title)
 
     if missing:
-        print(f"WARNING: VT entries not found for: {sorted(missing)}", file=sys.stderr)
+        print(f"WARNING: VT entries not found for presets: {sorted(missing)}", file=sys.stderr)
         print("Has any of them been renamed in the HA UI?", file=sys.stderr)
+    if motion_missing:
+        print(f"WARNING: VT entries not found for motion: {sorted(motion_missing)}", file=sys.stderr)
 
-    print(f"Patched {len(matched)} VT entries: {sorted(matched)}")
+    print(f"Patched presets on {len(matched)} VT entries: {sorted(matched)}")
+    print(f"Patched motion on {len(motion_matched)} VT entries: {sorted(motion_matched)}")
     STORAGE_PATH.write_text(json.dumps(data, indent=2))
-    print(f"Wrote {STORAGE_PATH}. Restart HA to pick up the new preset values.")
+    print(f"Wrote {STORAGE_PATH}. Restart HA to pick up the new values.")
     return 0
 
 

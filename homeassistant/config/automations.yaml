@@ -685,18 +685,18 @@
 - id: office_climate_schedule
   alias: Office Climate Schedule
   description: >
-    Office workspaces (Dagmar, Tania, Projects 1, Projects 2, Reception):
-    comfort preset 07:30–17:00 (target 25 °C with Summer Dynamic Temperature
-    Adjustment override), eco 17:00–17:30 (target 27 °C), **frost from 17:30
-    onwards** (target 30 °C = effectively no cooling). Workdays only.
+    Office workspaces (Dagmar, Tania, Projects 1, Reception):
+    comfort preset 07:30–17:00 (target 25 °C), eco 17:00–17:30 (target 27 °C),
+    **frost from 17:30 onwards** (target 30 °C = effectively no cooling).
+    Workdays only.
 
     Why frost at 17:30 instead of 19:00: observed 2026-05-26 18:15 — west-facing
     offices were still being cooled at eco target 27 because room temp was 27.8
     after a hot afternoon. User wants a hard stop on cooling shortly after
     office hours. Hence frost_time advanced from 19:00 to 17:30.
 
-    CS moved to own eco-by-default schedule 2026-05-26; Projects 2 moved here
-    from common (treated as workspace).
+    CS moved to own eco-by-default schedule 2026-05-26; Projects 2 moved BACK
+    to common 2026-06-04 (P2 currently unoccupied, behaves as common space).
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
@@ -704,7 +704,6 @@
       - climate.fancoil_dagmar
       - climate.fancoil_tania
       - climate.projects_1
-      - climate.projects_2
       - climate.fancoil_reception
       comfort_time: '08:00:00'
       eco_time: '17:00:00'
@@ -717,18 +716,19 @@
 - id: common_climate_schedule
   alias: Common Spaces Climate Schedule
   description: >
-    Common open areas (OpenSpace, Entrance): comfort preset during work hours
-    (target driven by cool-mode comfort_ac_temp 26 °C via Central config),
-    eco evening (28 °C), frost overnight (30 °C). Workdays only. Pre-heat 07:30.
-    Mensa moved to its own dedicated schedule 2026-05-26 (different times +
-    lunch boost). Projects 2 moved to office_climate_schedule (treated as
-    workspace).
+    Common open areas (OpenSpace, Entrance, Projects 2): comfort preset during
+    work hours (target driven by cool-mode comfort_ac_temp 26 °C via Central
+    config), eco evening (28 °C), frost overnight (30 °C). Workdays only.
+    Pre-heat 07:30. Mensa moved to its own dedicated schedule 2026-05-26
+    (different times + lunch boost). Projects 2 moved BACK here 2026-06-04
+    (P2 unoccupied, behaves as common space).
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
       thermostats:
       - climate.fancoil_openspace
       - climate.fancoil_entrance
+      - climate.projects_2
       comfort_time: '08:00:00'
       eco_time: '17:00:00'
       frost_time: '19:00:00'
@@ -781,14 +781,15 @@
       eco_preset: eco
       frost_preset: frost
 - id: mensa_climate_schedule
-  alias: Mensa Climate Schedule (comfort-all-day, frost overnight)
+  alias: Mensa Climate Schedule (comfort during work, eco evening, frost overnight)
   description: >
-    Mensa: comfort preset all day (target 26 °C via the dedicated cool-mode
+    Mensa: comfort preset 07:30–17:00 (target 26 °C via the dedicated cool-mode
     comfort_ac_temp = 26 set per-VT — Mensa opts out of Central inherit so it
-    has its own boost = 24.5 for the lunch ramp-up). The "eco" slot fires
-    `comfort` so the room never drifts to a warmer target during occupied
-    hours. Frost preset overnight (19:00 → 30 °C). Lunch boost handled by
-    separate `mensa_lunch_boost` automation (12:00 → 14:00, target 24.5 °C).
+    has its own boost = 24.5 for the lunch ramp-up). Eco 17:00–19:00 (target
+    27 °C — must be set as eco_ac_temp = 27 on Mensa VT in the UI; Mensa
+    doesn't inherit Central). Frost preset overnight (19:00 → 30 °C). Lunch
+    boost handled by separate `mensa_lunch_boost` automation (12:00 → 14:00,
+    target 24.5 °C).
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
@@ -800,9 +801,7 @@
       enable_preheat: true
       preheat_time: '07:30:00'
       comfort_preset: comfort
-      # eco_preset = comfort means: at 17:00 the schedule re-applies comfort.
-      # Mensa stays at 26 °C through evening cleanup until frost at 19:00.
-      eco_preset: comfort
+      eco_preset: eco
       frost_preset: frost
 - id: mensa_lunch_boost
   alias: Mensa Lunch Boost (12-14)
