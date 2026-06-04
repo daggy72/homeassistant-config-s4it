@@ -51,7 +51,7 @@ import shutil
 import sys
 from pathlib import Path
 
-STORAGE_PATH = Path("homeassistant/data/.storage/core.config_entries")
+STORAGE_PATH = Path("homeassistant/config/.storage/core.config_entries")
 
 # Map climate VT title (as it appears in the config_entry title field) to the
 # target preset values. The titles below match what Versatile Thermostat sets
