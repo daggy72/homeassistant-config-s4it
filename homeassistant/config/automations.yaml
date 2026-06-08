@@ -313,33 +313,56 @@
 - id: chiller_end_of_day_off
   alias: Chiller End-of-day Off
   description: >
-    Turn the chiller off in the evening once schedule blueprints have
-    moved all VTs to frost preset (19:00) and nobody is demanding active
-    cooling. Fires at 19:30 to give the 19:00 frost transition 30 min
-    to settle. Respects the 10-min min-cycle guard. Skips entirely if
-    season is not summer.
+    Hard turn-off of the chiller every evening at 19:30. The previous
+    version had a "skip if any VT is still cooling" guard and a
+    "season=summer only" condition; both caused the chiller to stay on
+    over weekends + off-season periods, wasting energy. Rewritten
+    2026-06-08 after weekend incident where chiller ran continuously
+    Fri 19:30 → Mon 06:30 (~60h continuous).
+
+    Now: at 19:30 daily, if the chiller is on AND min-cycle (10 min)
+    has elapsed, turn it off — no other conditions. Workday mornings
+    re-enable via Chiller Pre-start at 06:30.
   triggers:
   - trigger: time
     at: '19:30:00'
   conditions:
-  - condition: state
-    entity_id: input_select.climate_season
-    state: summer
   - condition: state
     entity_id: switch.shellypro4pm_ece334eaf568_switch_2
     state: 'on'
   - condition: template
     value_template: >
       {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() >= 600 }}
-  # Skip if any VT is still actively cooling — chiller stays on until they idle
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id: switch.shellypro4pm_ece334eaf568_switch_2
+  mode: single
+- id: chiller_safety_off_weekend
+  alias: Chiller Safety Off — non-workday
+  description: >
+    Safety net: every hour during non-workday hours, ensure the chiller
+    is off. Catches any case where the chiller got re-enabled outside
+    workday hours (manual flip, seasonal auto-switch, errant automation).
+    Respects 10-min min-cycle.
+  triggers:
+  - trigger: time_pattern
+    minutes: '0'
+  conditions:
+  - condition: state
+    entity_id: switch.shellypro4pm_ece334eaf568_switch_2
+    state: 'on'
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: binary_sensor.workday_sensor
+      state: 'off'
+    - condition: time
+      after: '19:30:00'
+      before: '06:30:00'
   - condition: template
     value_template: >
-      {% set cooling = expand([
-        'climate.fancoil_dagmar','climate.fancoil_tania','climate.projects_1',
-        'climate.fancoil_cs','climate.fancoil_reception','climate.fancoil_meeting',
-        'climate.fancoil_openspace','climate.fancoil_entrance','climate.climate_mensa',
-        'climate.projects_2']) | selectattr('attributes.hvac_action','eq','cooling') | list %}
-      {{ cooling | length == 0 }}
+      {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() >= 600 }}
   actions:
   - action: switch.turn_off
     target:
