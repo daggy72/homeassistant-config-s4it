@@ -26,3 +26,36 @@
   time_window: "00:30:00"
   unit_time: h
   round: 2
+
+# Trigger-zone rate sensors for smart_climate_prestart (catch sun-on-window).
+- platform: derivative
+  source: sensor.fancoil_dagmar_temp
+  name: "Fancoil Dagmar Temp Rate"
+  unique_id: fancoil_dagmar_temp_rate
+  time_window: "00:30:00"
+  unit_time: h
+  round: 2
+
+- platform: derivative
+  source: sensor.fancoil_tania_temp
+  name: "Fancoil Tania Temp Rate"
+  unique_id: fancoil_tania_temp_rate
+  time_window: "00:30:00"
+  unit_time: h
+  round: 2
+
+- platform: derivative
+  source: sensor.projects_1_temp
+  name: "Projects 1 Temp Rate"
+  unique_id: projects_1_temp_rate
+  time_window: "00:30:00"
+  unit_time: h
+  round: 2
+
+- platform: derivative
+  source: sensor.fancoil_reception_temp
+  name: "Fancoil Reception Temp Rate"
+  unique_id: fancoil_reception_temp_rate
+  time_window: "00:30:00"
+  unit_time: h
+  round: 2

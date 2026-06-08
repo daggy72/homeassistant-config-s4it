@@ -171,8 +171,13 @@
             entity_id: switch.shellypro4pm_ece334eaf568_switch_2
   mode: single
 - id: chiller_pre_start
-  alias: Chiller Pre-start (workday morning)
+  alias: Chiller Pre-start (workday morning) [DEPRECATED]
+  initial_state: false
   description: >
+    DEPRECATED 2026-06-08 — superseded by `smart_climate_prestart` which
+    decides activation based on actual room temps, rate of rise, and
+    weather forecast rather than firing unconditionally at 06:30.
+
     On workday mornings during summer mode, turn the chiller ON early
     enough for cold water to reach all fancoils before the schedule
     blueprints engage cooling at 07:30 (preheat/precool) and 08:00 (comfort).
@@ -200,6 +205,149 @@
     target:
       entity_id: switch.shellypro4pm_ece334eaf568_switch_2
   mode: single
+
+- id: smart_climate_prestart
+  alias: Smart Climate Pre-start (replaces 06:30 unconditional)
+  description: >
+    Decides whether to engage chiller + fancoils based on real-time
+    conditions rather than firing unconditionally at 06:30. Runs as a
+    10-min tick + instantly on relevant sensor crossings, between 05:30
+    and 19:30 workday during summer mode.
+
+    Trigger zones (drive activation):
+      - Always occupied: Dagmar, Tania, Reception, Projects 1
+      - Conditional: CS, Meeting (only count if preset=comfort OR motion=on)
+    Non-trigger zones (carried along once activation happens but don't
+    drive the decision): OpenSpace, Entrance, Mensa.
+    Projects 2 stays off (unoccupied).
+
+    Activates if ANY of:
+      A. Any always-occupied zone temp >= 25.0 °C
+      B. Any conditional zone temp >= 25.0 °C AND zone is occupied
+      C. Any trigger-zone temp rate >= 1.5 °C/h (sun-on-window catch)
+      D. Outdoor now >= 22 °C AND forecast max today >= 28 °C AND time
+         before 09:00 (preemptive heatwave morning)
+
+    Activation sequence:
+      1. Chiller ON
+      2. Wait 10 min for chilled water to reach fancoils
+      3. Staggered VT cool-mode activation (30s between zones) to ramp
+         chiller load gradually instead of 10 simultaneous demands.
+
+    Tune thresholds via inline values below; nothing here is exposed as
+    input_number yet — easy to refactor later if needed.
+  mode: single
+  max_exceeded: silent
+  triggers:
+  - trigger: time_pattern
+    minutes: '/10'
+    id: tick
+  - trigger: numeric_state
+    entity_id:
+    - sensor.fancoil_dagmar_temp
+    - sensor.fancoil_tania_temp
+    - sensor.projects_1_temp
+    - sensor.fancoil_reception_temp
+    - sensor.cs_temp
+    - sensor.meeting_room_temp
+    above: 25.0
+    id: warm_room
+  - trigger: numeric_state
+    entity_id:
+    - sensor.fancoil_dagmar_temp_rate
+    - sensor.fancoil_tania_temp_rate
+    - sensor.projects_1_temp_rate
+    - sensor.fancoil_reception_temp_rate
+    - sensor.cs_temp_rate
+    - sensor.meeting_room_temp_rate
+    above: 1.5
+    id: fast_rise
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.workday_sensor
+    state: 'on'
+  - condition: state
+    entity_id: input_select.climate_season
+    state: summer
+  - condition: state
+    entity_id: switch.shellypro4pm_ece334eaf568_switch_2
+    state: 'off'
+  - condition: time
+    after: '05:30:00'
+    before: '19:30:00'
+  - condition: template
+    value_template: >
+      {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() >= 600 }}
+  - condition: template
+    value_template: >
+      {% set warm_th = 25.0 %}
+      {% set rate_th = 1.5 %}
+      {% set outdoor_pre = 22.0 %}
+      {% set forecast_pre = 28.0 %}
+
+      {% set always_temps = [
+        states('sensor.fancoil_dagmar_temp') | float(0),
+        states('sensor.fancoil_tania_temp') | float(0),
+        states('sensor.projects_1_temp') | float(0),
+        states('sensor.fancoil_reception_temp') | float(0)
+      ] %}
+      {% set always_rates = [
+        states('sensor.fancoil_dagmar_temp_rate') | float(0),
+        states('sensor.fancoil_tania_temp_rate') | float(0),
+        states('sensor.projects_1_temp_rate') | float(0),
+        states('sensor.fancoil_reception_temp_rate') | float(0)
+      ] %}
+
+      {# Conditional zone occupancy: preset=comfort OR motion=on #}
+      {% set cs_occ = state_attr('climate.fancoil_cs', 'preset_mode') == 'comfort'
+        or is_state('binary_sensor.cc_up_sense_motion', 'on') %}
+      {% set m_occ = state_attr('climate.fancoil_meeting', 'preset_mode') == 'comfort'
+        or is_state('binary_sensor.mt_meeting_room_up_sense_motion', 'on') %}
+      {% set cs_temp = states('sensor.cs_temp') | float(0) %}
+      {% set m_temp = states('sensor.meeting_room_temp') | float(0) %}
+      {% set cs_rate = states('sensor.cs_temp_rate') | float(0) %}
+      {% set m_rate = states('sensor.meeting_room_temp_rate') | float(0) %}
+
+      {% set a = always_temps | select('ge', warm_th) | list | length > 0 %}
+      {% set b = (cs_occ and cs_temp >= warm_th) or (m_occ and m_temp >= warm_th) %}
+      {% set c = (always_rates | select('ge', rate_th) | list | length > 0)
+        or (cs_occ and cs_rate >= rate_th)
+        or (m_occ and m_rate >= rate_th) %}
+      {% set d = now().hour < 9
+        and states('sensor.outdoor_temperature') | float(0) >= outdoor_pre
+        and states('sensor.outdoor_forecast_max_today') | float(0) >= forecast_pre %}
+
+      {{ a or b or c or d }}
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id: switch.shellypro4pm_ece334eaf568_switch_2
+  - delay:
+      minutes: 10
+  - repeat:
+      for_each:
+      - climate.fancoil_dagmar
+      - climate.fancoil_tania
+      - climate.projects_1
+      - climate.fancoil_reception
+      - climate.fancoil_cs
+      - climate.fancoil_meeting
+      - climate.fancoil_openspace
+      - climate.fancoil_entrance
+      - climate.climate_mensa
+      sequence:
+      - if:
+        - condition: template
+          value_template: "{{ states(repeat.item) != 'cool' }}"
+        then:
+        - action: climate.set_hvac_mode
+          target:
+            entity_id: "{{ repeat.item }}"
+          data:
+            hvac_mode: cool
+      - delay:
+          seconds: 30
+
 - id: morning_vt_alignment
   alias: Morning VT Alignment (workday)
   description: >

@@ -575,6 +575,43 @@
       availability: >
         {{ state_attr('climate.fancoil_meeting', 'current_temperature') is not none }}
 
+    # --- Trigger-zone room temps (for smart pre-start derivative sensors) ---
+    - name: "Fancoil Dagmar Temp"
+      unique_id: fancoil_dagmar_temp
+      state: "{{ state_attr('climate.fancoil_dagmar', 'current_temperature') }}"
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+      availability: >
+        {{ state_attr('climate.fancoil_dagmar', 'current_temperature') is not none }}
+
+    - name: "Fancoil Tania Temp"
+      unique_id: fancoil_tania_temp
+      state: "{{ state_attr('climate.fancoil_tania', 'current_temperature') }}"
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+      availability: >
+        {{ state_attr('climate.fancoil_tania', 'current_temperature') is not none }}
+
+    - name: "Projects 1 Temp"
+      unique_id: projects_1_temp
+      state: "{{ state_attr('climate.projects_1', 'current_temperature') }}"
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+      availability: >
+        {{ state_attr('climate.projects_1', 'current_temperature') is not none }}
+
+    - name: "Fancoil Reception Temp"
+      unique_id: fancoil_reception_temp
+      state: "{{ state_attr('climate.fancoil_reception', 'current_temperature') }}"
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+      availability: >
+        {{ state_attr('climate.fancoil_reception', 'current_temperature') is not none }}
+
     - name: "Mensa Temp"
       unique_id: mensa_temp
       state: "{{ state_attr('climate.climate_mensa', 'current_temperature') }}"
@@ -695,3 +732,29 @@
         {% endif %}
       availability: >
         {{ states('climate.fancoil_entrance') not in ['unavailable', 'unknown', 'none'] }}
+
+# --- Trigger-based forecast sensor (refreshes every 30 min + HA start) ---
+# Calls weather.get_forecasts service and exposes today's forecast high.
+# Used by smart_climate_prestart to detect "hot day expected" mornings.
+- trigger:
+    - platform: time_pattern
+      minutes: '/30'
+    - platform: homeassistant
+      event: start
+  action:
+    - delay:
+        seconds: 5
+    - service: weather.get_forecasts
+      data:
+        type: daily
+      target:
+        entity_id: weather.forecast_home
+      response_variable: fcast
+  sensor:
+    - name: "Outdoor Forecast Max Today"
+      unique_id: outdoor_forecast_max_today
+      state: "{{ fcast['weather.forecast_home'].forecast[0].temperature }}"
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+      icon: mdi:weather-sunny-alert
