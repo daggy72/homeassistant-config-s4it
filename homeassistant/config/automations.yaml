@@ -1078,7 +1078,16 @@
 
 - id: fancoil_0_10v_min_floor_cool
   alias: Fancoil 0-10V — 35% maintain floor (cool mode)
+  initial_state: false
   description: >-
+    DISABLED 2026-06-08 — caused massive overshoot Monday morning (Dagmar
+    21.1 °C / Projects 1 21.4 °C / Mensa 23.0 °C, all 3-4 °C below setpoint).
+    Root cause hypothesis: cur_temp attribute lags actual room sensor while
+    VT cycle_min keeps fancoil at 35% for full cycle duration; in small rooms
+    with 2× parallel fancoils per Shelly the 35% floor over-cools rapidly.
+    See [[climate-0-10v-maintain-floor-overshoot-2026-06-08]] for full
+    incident.
+
     Shelly 0-10V fancoils (Dagmar / Projects 1 / Projects 2 / Mensa) use
     `thermostat_over_valve` which writes the VT demand (0-100%) into the
     template `number.fancoil_*`, which in turn drives the Shelly light
@@ -1131,7 +1140,11 @@
 
 - id: fancoil_0_10v_cool_mode_engage
   alias: Fancoil 0-10V — engage 35% on cool entry / above setpoint
+  initial_state: false
   description: >-
+    DISABLED 2026-06-08 alongside fancoil_0_10v_min_floor_cool — see that
+    automation's description for the overshoot incident details.
+
     Companion to fancoil_0_10v_min_floor_cool. Fires when (a) a VT switches
     into cool mode or (b) room temperature rises and crosses back above
     setpoint while VT is already in cool. In both cases, if the underlying
