@@ -885,14 +885,23 @@
       eco_preset: eco
       frost_preset: frost
 - id: common_climate_schedule
-  alias: Common Spaces Climate Schedule
+  alias: Common Spaces Climate Schedule (eco-by-default)
   description: >
-    Common open areas (OpenSpace, Entrance, Projects 2): comfort preset during
-    work hours (target driven by cool-mode comfort_ac_temp 26 °C via Central
-    config), eco evening (28 °C), frost overnight (30 °C). Workdays only.
-    Pre-heat 07:30. Mensa moved to its own dedicated schedule 2026-05-26
-    (different times + lunch boost). Projects 2 moved BACK here 2026-06-04
-    (P2 unoccupied, behaves as common space).
+    Common open areas (OpenSpace, Entrance, Projects 2): eco-by-default
+    during work hours — target 27 °C (= COMMON eco_ac_temp). Common
+    spaces should NOT be cooled to comfort during work hours; users in
+    those areas are transient, and 27 °C is the standing rule. If a
+    common area truly needs comfort temp (e.g., big meeting in OpenSpace),
+    pull the preset to comfort manually via the dashboard.
+
+    Schedule: preheat 07:30 → eco 08:00 → eco 17:00 → frost 19:00.
+    Pattern matches CS/Meeting (also eco-by-default).
+    Workdays only.
+
+    History:
+    - 2026-05-26: Mensa moved to dedicated schedule (lunch boost)
+    - 2026-06-04: Projects 2 moved BACK here (unoccupied, treated common)
+    - 2026-06-08: flipped to eco-by-default per Dagmar's standing rule
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
@@ -905,7 +914,9 @@
       frost_time: '19:00:00'
       enable_preheat: true
       preheat_time: '07:30:00'
-      comfort_preset: comfort
+      # eco-by-default: comfort slot fires eco preset so room sits at
+      # 27 °C through work hours unless manually pulled to comfort.
+      comfort_preset: eco
       eco_preset: eco
       frost_preset: frost
 - id: cs_climate_schedule

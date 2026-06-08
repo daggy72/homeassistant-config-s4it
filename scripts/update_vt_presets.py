@@ -58,8 +58,12 @@ STORAGE_PATH = Path("homeassistant/config/.storage/core.config_entries")
 # at config-flow time; if the user has renamed any in HA UI, the lookup will
 # miss and the script prints a warning.
 OFFICE = dict(comfort_ac_temp=25.5, eco_ac_temp=29.0, boost_ac_temp=24.0, frost_ac_temp=30.0)
-COMMON = dict(comfort_ac_temp=27.0, eco_ac_temp=29.0, boost_ac_temp=25.0, frost_ac_temp=30.0)
-MENSA = dict(comfort_ac_temp=27.0, eco_ac_temp=29.0, boost_ac_temp=24.5, frost_ac_temp=30.0)
+# COMMON eco lowered 29 → 27 (2026-06-08) so common spaces sit comfortably
+# at 27 °C all work hours under the eco-by-default schedule (rather than the
+# previous 29 which felt too warm).
+COMMON = dict(comfort_ac_temp=27.0, eco_ac_temp=27.0, boost_ac_temp=25.0, frost_ac_temp=30.0)
+# MENSA eco aligned to 27 per Dagmar 2026-06-04: "Mensa eco at 27 after 17:00".
+MENSA = dict(comfort_ac_temp=27.0, eco_ac_temp=27.0, boost_ac_temp=24.5, frost_ac_temp=30.0)
 
 ZONE_PRESETS = {
     "Fancoil Dagmar": OFFICE,
