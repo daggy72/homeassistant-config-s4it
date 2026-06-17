@@ -81,6 +81,8 @@
   conditions: []
   actions:
   - variables:
+      # Projects 2 REMOVED 2026-06-09 — unoccupied, kept dormant (off).
+      # See common_climate_schedule note. Re-add when reoccupied.
       all_thermostats:
       - climate.fancoil_dagmar
       - climate.fancoil_tania
@@ -91,7 +93,6 @@
       - climate.fancoil_openspace
       - climate.fancoil_entrance
       - climate.climate_mensa
-      - climate.projects_2
       new_season: "{{ states('input_select.climate_season') }}"
       chiller_last_changed_age: >
         {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() }}
@@ -367,6 +368,8 @@
     state: 'on'
   actions:
   - variables:
+      # Projects 2 REMOVED 2026-06-09 — unoccupied, kept dormant (off).
+      # See common_climate_schedule note. Re-add when reoccupied.
       all_thermostats:
       - climate.fancoil_dagmar
       - climate.fancoil_tania
@@ -377,7 +380,6 @@
       - climate.fancoil_openspace
       - climate.fancoil_entrance
       - climate.climate_mensa
-      - climate.projects_2
       season: "{{ states('input_select.climate_season') }}"
       target_hvac: >
         {% if season == 'summer' %}cool
@@ -431,6 +433,8 @@
   - delay:
       seconds: 30
   - variables:
+      # Projects 2 REMOVED 2026-06-09 — unoccupied, kept dormant (off).
+      # See common_climate_schedule note. Re-add when reoccupied.
       all_thermostats:
       - climate.fancoil_dagmar
       - climate.fancoil_tania
@@ -441,7 +445,6 @@
       - climate.fancoil_openspace
       - climate.fancoil_entrance
       - climate.climate_mensa
-      - climate.projects_2
       season: "{{ states('input_select.climate_season') }}"
       target_hvac: >
         {% if season == 'summer' %}cool
@@ -908,7 +911,11 @@
       thermostats:
       - climate.fancoil_openspace
       - climate.fancoil_entrance
-      - climate.projects_2
+      # Projects 2 REMOVED 2026-06-09 — unoccupied, kept dormant (off). It was
+      # being driven into cool by this schedule but its cool-mode preset has no
+      # valid _ac_temp, so target resolved to 0 °C → 100% demand runaway
+      # (0 °C frost-bug variant). Re-add here when the room is reoccupied AND
+      # its VT presets are reconfirmed via update_vt_presets.py.
       comfort_time: '08:00:00'
       eco_time: '17:00:00'
       frost_time: '19:00:00'
