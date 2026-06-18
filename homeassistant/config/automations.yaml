@@ -369,17 +369,15 @@
     event_type: automation_reloaded
   - trigger: homeassistant
     event: start
+  # P2 is unoccupied and removed from all control automations. Whenever it is
+  # found in cool (the wedged 0 °C frost state, or any cool), force it off.
+  # Preset-independent so it works even while the VT runtime presets are wedged
+  # at 0. Self-clears once P2 is off (state != cool).
   conditions:
-  - condition: template
-    value_template: "{{ state_attr('climate.projects_2','temperature') | float(99) < 5 }}"
+  - condition: state
+    entity_id: climate.projects_2
+    state: cool
   actions:
-  - action: climate.set_preset_mode
-    target:
-      entity_id: climate.projects_2
-    data:
-      preset_mode: eco
-  - delay:
-      seconds: 3
   - action: climate.set_hvac_mode
     target:
       entity_id: climate.projects_2
