@@ -273,9 +273,11 @@
   - condition: state
     entity_id: switch.shellypro4pm_ece334eaf568_switch_2
     state: 'off'
+  # No new chiller pre-start after 17:00 — offices move to frost (no cooling)
+  # at 17:30, so starting the chiller in the evening just wastes energy.
   - condition: time
     after: '05:30:00'
-    before: '19:30:00'
+    before: '17:00:00'
   - condition: template
     value_template: >
       {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() >= 600 }}
@@ -501,19 +503,14 @@
 - id: chiller_end_of_day_off
   alias: Chiller End-of-day Off
   description: >
-    Hard turn-off of the chiller every evening at 19:30. The previous
-    version had a "skip if any VT is still cooling" guard and a
-    "season=summer only" condition; both caused the chiller to stay on
-    over weekends + off-season periods, wasting energy. Rewritten
-    2026-06-08 after weekend incident where chiller ran continuously
-    Fri 19:30 → Mon 06:30 (~60h continuous).
-
-    Now: at 19:30 daily, if the chiller is on AND min-cycle (10 min)
-    has elapsed, turn it off — no other conditions. Workday mornings
-    re-enable via Chiller Pre-start at 06:30.
+    Hard turn-off of the chiller every evening at 18:00. Offices move to
+    frost (no cooling) at 17:30, so the chiller has nothing to serve after
+    that — per Dagmar's rule "chiller off after 18:00". Moved 19:30 → 18:00
+    on 2026-06-18. If the chiller is on AND min-cycle (10 min) has elapsed,
+    turn it off — no other conditions.
   triggers:
   - trigger: time
-    at: '19:30:00'
+    at: '18:00:00'
   conditions:
   - condition: state
     entity_id: switch.shellypro4pm_ece334eaf568_switch_2
@@ -527,12 +524,12 @@
       entity_id: switch.shellypro4pm_ece334eaf568_switch_2
   mode: single
 - id: chiller_safety_off_weekend
-  alias: Chiller Safety Off — non-workday
+  alias: Chiller Safety Off — non-workday / after-hours
   description: >
-    Safety net: every hour during non-workday hours, ensure the chiller
-    is off. Catches any case where the chiller got re-enabled outside
-    workday hours (manual flip, seasonal auto-switch, errant automation).
-    Respects 10-min min-cycle.
+    Safety net: every hour, ensure the chiller is off during non-workday
+    hours or outside 06:30–18:00. Catches any case where it got re-enabled
+    outside cooling hours (manual flip, seasonal switch, errant automation).
+    Respects 10-min min-cycle. Window aligned to 18:00 on 2026-06-18.
   triggers:
   - trigger: time_pattern
     minutes: '0'
@@ -546,11 +543,44 @@
       entity_id: binary_sensor.workday_sensor
       state: 'off'
     - condition: time
-      after: '19:30:00'
+      after: '18:00:00'
       before: '06:30:00'
   - condition: template
     value_template: >
       {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() >= 600 }}
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id: switch.shellypro4pm_ece334eaf568_switch_2
+  mode: single
+
+- id: chiller_idle_off_no_demand
+  alias: Chiller Idle Off — no cooling demand
+  description: >
+    Implements "chiller off when all devices are off". Every 15 min, if the
+    chiller has been on for >20 min and NO office VT is actively cooling
+    (hvac_action == 'cooling'), turn it off. The 20-min on-guard avoids
+    cutting the chiller during smart_climate_prestart's 10-min cold-water
+    pre-charge (when VTs are not yet demanding). Respects 10-min min-cycle.
+  mode: single
+  triggers:
+  - trigger: time_pattern
+    minutes: '/15'
+  conditions:
+  - condition: state
+    entity_id: switch.shellypro4pm_ece334eaf568_switch_2
+    state: 'on'
+  - condition: template
+    value_template: >
+      {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() >= 1200 }}
+  - condition: template
+    value_template: >
+      {% set zones = [
+        'climate.fancoil_dagmar','climate.fancoil_tania','climate.projects_1',
+        'climate.fancoil_cs','climate.fancoil_reception','climate.fancoil_meeting',
+        'climate.fancoil_openspace','climate.fancoil_entrance','climate.climate_mensa',
+        'climate.projects_2'] %}
+      {{ zones | map('state_attr','hvac_action') | select('eq','cooling') | list | length == 0 }}
   actions:
   - action: switch.turn_off
     target:
