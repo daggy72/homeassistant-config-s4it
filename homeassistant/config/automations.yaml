@@ -363,6 +363,8 @@
     the target is sane. REMOVE this automation once confirmed.
   mode: single
   triggers:
+  - trigger: time_pattern
+    minutes: '*'
   - trigger: event
     event_type: automation_reloaded
   - trigger: homeassistant
