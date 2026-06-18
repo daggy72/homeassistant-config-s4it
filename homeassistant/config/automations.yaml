@@ -349,6 +349,43 @@
       - delay:
           seconds: 30
 
+- id: p2_dormant_off_guard
+  alias: Projects 2 Dormant Guard (force off while unoccupied)
+  description: >
+    Projects 2 is unoccupied and excluded from all climate control. But a VT
+    restores its own last hvac_mode on HA restart, so P2 kept coming back as
+    `cool` with a stale 0 °C target → 100% fancoil demand. Remote turn-off via
+    the MCP/assist path is silently no-op'd for this VT, so this guard uses the
+    core climate.set_hvac_mode service (which DOES work) to force P2 off
+    whenever it is found in any non-off mode. Fires every minute + on HA start;
+    once P2 is off the condition is false so it idles.
+    REMOVE this guard (and re-add P2 to the control automations) when the
+    Projects 2 desks are re-staffed.
+  mode: single
+  triggers:
+  - trigger: time_pattern
+    minutes: '/1'
+  - trigger: homeassistant
+    event: start
+  conditions:
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: climate.projects_2
+      state: 'off'
+    - condition: state
+      entity_id: climate.projects_2
+      state: 'unavailable'
+    - condition: state
+      entity_id: climate.projects_2
+      state: 'unknown'
+  actions:
+  - action: climate.set_hvac_mode
+    target:
+      entity_id: climate.projects_2
+    data:
+      hvac_mode: 'off'
+
 - id: morning_vt_alignment
   alias: Morning VT Alignment (workday)
   description: >
