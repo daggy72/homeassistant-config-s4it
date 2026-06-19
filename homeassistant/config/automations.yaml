@@ -927,14 +927,13 @@
   alias: Office Climate Schedule
   description: >
     Office workspaces (Dagmar, Tania, Projects 1, Reception):
-    comfort preset 07:30–17:00 (target 25 °C), eco 17:00–17:30 (target 27 °C),
-    **frost from 17:30 onwards** (target 30 °C = effectively no cooling).
+    **comfort preset held 07:30–18:00** (target 25.5 °C), then **frost from
+    18:00** (target 30 °C = no cooling, aligns with chiller hard-off at 18:00).
     Workdays only.
 
-    Why frost at 17:30 instead of 19:00: observed 2026-05-26 18:15 — west-facing
-    offices were still being cooled at eco target 27 because room temp was 27.8
-    after a hot afternoon. User wants a hard stop on cooling shortly after
-    office hours. Hence frost_time advanced from 19:00 to 17:30.
+    2026-06-18 change (Dagmar): keep comfort until 18:00, do NOT drop to eco at
+    17:00. Implemented by making the 17:00 eco slot re-apply comfort
+    (eco_preset=comfort, a no-op keep) and moving frost_time 17:30 → 18:00.
 
     CS moved to own eco-by-default schedule 2026-05-26; Projects 2 moved BACK
     to common 2026-06-04 (P2 currently unoccupied, behaves as common space).
@@ -948,11 +947,12 @@
       - climate.fancoil_reception
       comfort_time: '08:00:00'
       eco_time: '17:00:00'
-      frost_time: '17:30:00'
+      frost_time: '18:00:00'
       enable_preheat: true
       preheat_time: '07:30:00'
       comfort_preset: comfort
-      eco_preset: eco
+      # eco slot re-applies comfort (keep comfort until 18:00, no 17:00 drop)
+      eco_preset: comfort
       frost_preset: frost
 - id: common_climate_schedule
   alias: Common Spaces Climate Schedule (eco-by-default)
@@ -997,22 +997,28 @@
   alias: CS Climate Schedule (eco-by-default)
   description: >
     Customer Service: eco-by-default. The "comfort" slot fires `eco` so the
-    room stays in eco preset (target 27 °C) from 07:30 through 17:00 unless
-    manually pulled to `comfort` (target 25 °C) when the room is actually used.
-    **Frost from 17:30 onwards** (target 30 °C, no cooling). Same model as
-    Meeting Room — moved here 2026-05-26 because CS isn't occupied every day.
+    room sits in eco (target 27 °C) from 07:30 unless manually pulled to
+    `comfort` (target 25 °C) when the room is used.
+
+    2026-06-18 change (Dagmar): if CS is on comfort, KEEP it until 18:00 — do
+    not drop to eco at 17:00. Implemented by removing the 17:00 eco re-assert
+    (no preset change 08:00→18:00, so a manual comfort persists) and going
+    straight to **frost at 18:00** (both evening slots resolve to frost),
+    aligned with the chiller hard-off at 18:00.
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
       thermostats:
       - climate.fancoil_cs
       comfort_time: '08:00:00'
-      eco_time: '17:00:00'
-      frost_time: '17:30:00'
+      # No 17:00 transition: both eco + frost slots fire at 18:00 → frost, so
+      # whatever CS is in (eco default or a manual comfort) holds until 18:00.
+      eco_time: '18:00:00'
+      frost_time: '18:00:00'
       enable_preheat: true
       preheat_time: '07:30:00'
       comfort_preset: eco
-      eco_preset: eco
+      eco_preset: frost
       frost_preset: frost
 - id: meeting_climate_schedule
   alias: Meeting Room Climate Schedule
