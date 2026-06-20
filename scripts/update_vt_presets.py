@@ -14,31 +14,23 @@ container UID, so sudo is required):
 The script writes a timestamped .bak alongside the original file before
 patching, and refuses to run if HA is still up (lock file present).
 
-Target preset values (after 2026-05-27 simplification):
+Target preset values (2026-06-20 redesign). "frost" = BOIL/overheat protection
+in cool mode (VT cools the room down to this target if exceeded):
 
-    Offices (Dagmar, Tania, CS, Meeting, Projects 1, Reception):
-        comfort_ac_temp = 25.5
-        eco_ac_temp     = 29.0
+    OFFICE (Dagmar, Tania, CS, Meeting, Projects 1, Projects 2, Reception, Mensa):
+        comfort_ac_temp = 25.0
+        eco_ac_temp     = 27.0
         boost_ac_temp   = 24.0
-        frost_ac_temp   = 30.0
+        frost_ac_temp   = 30.0   (boil)
 
-    Common  (OpenSpace, Entrance, Projects 2):
+    COMMON (OpenSpace, Entrance):
         comfort_ac_temp = 27.0
         eco_ac_temp     = 29.0
         boost_ac_temp   = 25.0
-        frost_ac_temp   = 30.0
+        frost_ac_temp   = 31.0   (boil)
 
-    Mensa (common but lunch-boost specific):
-        comfort_ac_temp = 27.0
-        eco_ac_temp     = 29.0
-        boost_ac_temp   = 24.5
-        frost_ac_temp   = 30.0
-
-Motion-override config (added 2026-06-04) for Meeting / CS / Reception:
-    use_motion_feature=True, motion_preset=comfort, no_motion_preset=eco,
-    motion_delay=30s on, motion_off_delay=300s (5 min) off.
-    activity_ac_temp set to match comfort so the manual activity preset
-    also pulls cooling.
+Motion override DISABLED 2026-06-20 (use_motion_feature=False on Meeting/CS/
+Reception) — superseded by the deterministic schedule + manual-override model.
 
 The Summer Dynamic Temperature Adjustment automation is disabled separately
 in automations.yaml so these fixed values stick.
@@ -57,65 +49,40 @@ STORAGE_PATH = Path("homeassistant/config/.storage/core.config_entries")
 # target preset values. The titles below match what Versatile Thermostat sets
 # at config-flow time; if the user has renamed any in HA UI, the lookup will
 # miss and the script prints a warning.
-OFFICE = dict(comfort_ac_temp=25.5, eco_ac_temp=29.0, boost_ac_temp=24.0, frost_ac_temp=30.0)
-# COMMON eco lowered 29 → 27 (2026-06-08) so common spaces sit comfortably
-# at 27 °C all work hours under the eco-by-default schedule (rather than the
-# previous 29 which felt too warm).
-COMMON = dict(comfort_ac_temp=27.0, eco_ac_temp=27.0, boost_ac_temp=25.0, frost_ac_temp=30.0)
-# MENSA eco aligned to 27 per Dagmar 2026-06-04: "Mensa eco at 27 after 17:00".
-MENSA = dict(comfort_ac_temp=27.0, eco_ac_temp=27.0, boost_ac_temp=24.5, frost_ac_temp=30.0)
+# 2026-06-20 preset scheme (Dagmar's full redesign). "frost" preset is reused
+# in cool mode as BOIL / overheat protection — VT actively cools a room down to
+# this target if it exceeds it (offices 30, common 31).
+#   OFFICE group: comfort 25, eco 27, boost 24, boil(frost) 30
+#   COMMON group: comfort 27, eco 29, boost 25, boil(frost) 31
+OFFICE = dict(comfort_ac_temp=25.0, eco_ac_temp=27.0, boost_ac_temp=24.0, frost_ac_temp=30.0)
+COMMON = dict(comfort_ac_temp=27.0, eco_ac_temp=29.0, boost_ac_temp=25.0, frost_ac_temp=31.0)
 
 ZONE_PRESETS = {
     "Fancoil Dagmar": OFFICE,
     "Fancoil Tania": OFFICE,
     "Projects 1": OFFICE,
-    # Projects 2 is unoccupied and shares the Mensa sensor, so use the common-room
-    # preset (comfort 27 / eco 29) rather than office (25.5 / 29). Flip back to
-    # OFFICE if/when occupancy returns. See memory: projects2-unoccupied-tracks-mensa.
-    "Projects 2": COMMON,
+    "Fancoil Reception": OFFICE,
     "Fancoil CS": OFFICE,
     "Fancoil Meeting": OFFICE,
-    "Fancoil Reception": OFFICE,
+    # Projects 2 now in the OFFICE group (eco-default like CS/Meeting). It was
+    # previously COMMON while treated as unoccupied; re-staffed under the 2026-06-20
+    # scheme. Its VT may still need a one-time Options-flow reconfigure to un-wedge.
+    "Projects 2": OFFICE,
+    # Mensa folded into OFFICE group (comfort 25 / eco 27 / boost 24); lunch boost
+    # 12:00-14:00 uses the boost preset (= 24).
+    "Climate Mensa": OFFICE,
     "Fancoil OpenSpace": COMMON,
     "Fancoil Entrance": COMMON,
-    "Climate Mensa": MENSA,
 }
 
-# Motion-override config: when motion fires, VT swaps preset to motion_preset
-# (comfort); when motion clears for motion_off_delay seconds, VT swaps to
-# no_motion_preset (eco). Applied per-VT (use_motion_central_config=False).
-# Also sets activity_ac_temp so the manual `activity` preset pulls cooling.
+# Motion-override DISABLED 2026-06-20. The deterministic schedule + manual
+# override model (CS holds all day, Meeting 1h revert, Reception comfort-default)
+# supersedes motion-based auto-switching, which would otherwise fight it (e.g.
+# drop comfort-default Reception to eco when empty, or undo CS's all-day hold).
 MOTION_OVERRIDE = {
-    "Fancoil Meeting": {
-        "use_motion_feature": True,
-        "use_motion_central_config": False,
-        "motion_sensor_entity_id": "binary_sensor.mt_meeting_room_up_sense_motion",
-        "motion_delay": 30,
-        "motion_off_delay": 300,
-        "motion_preset": "comfort",
-        "no_motion_preset": "eco",
-        "activity_ac_temp": 25.5,
-    },
-    "Fancoil CS": {
-        "use_motion_feature": True,
-        "use_motion_central_config": False,
-        "motion_sensor_entity_id": "binary_sensor.cc_up_sense_motion",
-        "motion_delay": 30,
-        "motion_off_delay": 300,
-        "motion_preset": "comfort",
-        "no_motion_preset": "eco",
-        "activity_ac_temp": 25.5,
-    },
-    "Fancoil Reception": {
-        "use_motion_feature": True,
-        "use_motion_central_config": False,
-        "motion_sensor_entity_id": "binary_sensor.reception_up_sense_motion",
-        "motion_delay": 30,
-        "motion_off_delay": 300,
-        "motion_preset": "comfort",
-        "no_motion_preset": "eco",
-        "activity_ac_temp": 25.5,
-    },
+    "Fancoil Meeting": {"use_motion_feature": False},
+    "Fancoil CS": {"use_motion_feature": False},
+    "Fancoil Reception": {"use_motion_feature": False},
 }
 
 

@@ -93,6 +93,7 @@
       - climate.fancoil_openspace
       - climate.fancoil_entrance
       - climate.climate_mensa
+      - climate.projects_2
       new_season: "{{ states('input_select.climate_season') }}"
       chiller_last_changed_age: >
         {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() }}
@@ -208,8 +209,14 @@
   mode: single
 
 - id: smart_climate_prestart
-  alias: Smart Climate Pre-start (replaces 06:30 unconditional)
+  alias: Smart Climate Pre-start [DEPRECATED 2026-06-20]
+  initial_state: false
   description: >
+    DEPRECATED 2026-06-20 — superseded by the demand-driven chiller
+    (chiller_on_demand / chiller_idle_off_no_demand) plus
+    chiller_prestart_forecast. VT cool-mode activation is handled by
+    morning_vt_alignment + the seasonal switch. Kept disabled for reference.
+
     Decides whether to engage chiller + fancoils based on real-time
     conditions rather than firing unconditionally at 06:30. Runs as a
     10-min tick + instantly on relevant sensor crossings, between 05:30
@@ -351,42 +358,9 @@
       - delay:
           seconds: 30
 
-- id: p2_dormant_off_guard
-  alias: Projects 2 Dormant Guard (force off while unoccupied)
-  description: >
-    Projects 2 is unoccupied and excluded from all climate control. But a VT
-    restores its own last hvac_mode on HA restart, so P2 kept coming back as
-    `cool` with a stale 0 °C target → 100% fancoil demand. Remote turn-off via
-    the MCP/assist path is silently no-op'd for this VT, so this guard uses the
-    core climate.set_hvac_mode service (which DOES work) to force P2 off
-    whenever it is found in any non-off mode. Fires every minute + on HA start;
-    once P2 is off the condition is false so it idles.
-    REMOVE this guard (and re-add P2 to the control automations) when the
-    Projects 2 desks are re-staffed.
-  mode: single
-  triggers:
-  - trigger: time_pattern
-    minutes: '/1'
-  - trigger: homeassistant
-    event: start
-  conditions:
-  - condition: not
-    conditions:
-    - condition: state
-      entity_id: climate.projects_2
-      state: 'off'
-    - condition: state
-      entity_id: climate.projects_2
-      state: 'unavailable'
-    - condition: state
-      entity_id: climate.projects_2
-      state: 'unknown'
-  actions:
-  - action: climate.set_hvac_mode
-    target:
-      entity_id: climate.projects_2
-    data:
-      hvac_mode: 'off'
+# p2_dormant_off_guard REMOVED 2026-06-20 — Projects 2 is re-staffed and now
+# on the eco-default schedule (cs_climate_schedule) with valid presets, so it
+# no longer needs to be force-held off.
 
 - id: morning_vt_alignment
   alias: Morning VT Alignment (workday)
@@ -419,6 +393,7 @@
       - climate.fancoil_openspace
       - climate.fancoil_entrance
       - climate.climate_mensa
+      - climate.projects_2
       season: "{{ states('input_select.climate_season') }}"
       target_hvac: >
         {% if season == 'summer' %}cool
@@ -484,6 +459,7 @@
       - climate.fancoil_openspace
       - climate.fancoil_entrance
       - climate.climate_mensa
+      - climate.projects_2
       season: "{{ states('input_select.climate_season') }}"
       target_hvac: >
         {% if season == 'summer' %}cool
@@ -500,56 +476,89 @@
   # had set eco/frost/comfort before the restart). Forcing comfort here
   # caused over-cooling at evening restarts (2026-05-26 21:24 incident).
   mode: single
-- id: chiller_end_of_day_off
-  alias: Chiller End-of-day Off
+# 2026-06-20: chiller_end_of_day_off (18:00 hard-off) and
+# chiller_safety_off_weekend REMOVED. They blocked the demand-driven model and
+# weekend boil protection. The chiller now follows real cooling demand 7 days a
+# week (chiller_on_demand on / chiller_idle_off_no_demand off), so it switches
+# off on its own when nothing needs cooling and stays available when a room
+# overheats — including after 18:00 and on weekends.
+
+- id: chiller_on_demand
+  alias: Chiller On — cooling demand (fancoil interlock)
   description: >
-    Hard turn-off of the chiller every evening at 18:00. Offices move to
-    frost (no cooling) at 17:30, so the chiller has nothing to serve after
-    that — per Dagmar's rule "chiller off after 18:00". Moved 19:30 → 18:00
-    on 2026-06-18. If the chiller is on AND min-cycle (10 min) has elapsed,
-    turn it off — no other conditions.
+    2026-06-20 interlock fix: the chiller must be ON whenever ANY VT is actually
+    cooling, so fancoils never blow warm air over an uncooled coil (the Saturday
+    waste bug). Runs 7 days/week incl. weekends for boil protection. Turns the
+    chiller on when a zone demands cooling and the chiller is off. Respects the
+    10-min min-cycle. The OFF side is chiller_idle_off_no_demand.
+  mode: single
   triggers:
-  - trigger: time
-    at: '18:00:00'
+  - trigger: time_pattern
+    minutes: '/3'
+  - trigger: state
+    entity_id:
+    - climate.fancoil_dagmar
+    - climate.fancoil_tania
+    - climate.projects_1
+    - climate.fancoil_cs
+    - climate.fancoil_reception
+    - climate.fancoil_meeting
+    - climate.fancoil_openspace
+    - climate.fancoil_entrance
+    - climate.climate_mensa
+    - climate.projects_2
+    attribute: hvac_action
+    to: cooling
   conditions:
   - condition: state
+    entity_id: input_select.climate_season
+    state: summer
+  - condition: state
     entity_id: switch.shellypro4pm_ece334eaf568_switch_2
-    state: 'on'
+    state: 'off'
   - condition: template
     value_template: >
       {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() >= 600 }}
+  - condition: template
+    value_template: >
+      {% set zones = [
+        'climate.fancoil_dagmar','climate.fancoil_tania','climate.projects_1',
+        'climate.fancoil_cs','climate.fancoil_reception','climate.fancoil_meeting',
+        'climate.fancoil_openspace','climate.fancoil_entrance','climate.climate_mensa',
+        'climate.projects_2'] %}
+      {{ zones | map('state_attr','hvac_action') | select('eq','cooling') | list | length > 0 }}
   actions:
-  - action: switch.turn_off
+  - action: switch.turn_on
     target:
       entity_id: switch.shellypro4pm_ece334eaf568_switch_2
   mode: single
-- id: chiller_safety_off_weekend
-  alias: Chiller Safety Off — non-workday / after-hours
+
+- id: chiller_prestart_forecast
+  alias: Chiller Pre-start — warm-forecast morning
   description: >
-    Safety net: every hour, ensure the chiller is off during non-workday
-    hours or outside 06:30–18:00. Catches any case where it got re-enabled
-    outside cooling hours (manual flip, seasonal switch, errant automation).
-    Respects 10-min min-cycle. Window aligned to 18:00 on 2026-06-18.
+    2026-06-20: on warm-forecast mornings (7 days), start the chiller at 07:30
+    so cold water is ready before rooms heat / before 08:00 comfort. Only if
+    today's forecast max >= 27 C, season summer, chiller off, min-cycle ok. If
+    no real demand follows, chiller_idle_off_no_demand turns it back off.
+  mode: single
   triggers:
-  - trigger: time_pattern
-    minutes: '0'
+  - trigger: time
+    at: '07:30:00'
   conditions:
   - condition: state
+    entity_id: input_select.climate_season
+    state: summer
+  - condition: state
     entity_id: switch.shellypro4pm_ece334eaf568_switch_2
-    state: 'on'
-  - condition: or
-    conditions:
-    - condition: state
-      entity_id: binary_sensor.workday_sensor
-      state: 'off'
-    - condition: time
-      after: '18:00:00'
-      before: '06:30:00'
+    state: 'off'
+  - condition: numeric_state
+    entity_id: sensor.outdoor_forecast_max_today
+    above: 27
   - condition: template
     value_template: >
       {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() >= 600 }}
   actions:
-  - action: switch.turn_off
+  - action: switch.turn_on
     target:
       entity_id: switch.shellypro4pm_ece334eaf568_switch_2
   mode: single
@@ -557,11 +566,11 @@
 - id: chiller_idle_off_no_demand
   alias: Chiller Idle Off — no cooling demand
   description: >
-    Implements "chiller off when all devices are off". Every 15 min, if the
-    chiller has been on for >20 min and NO office VT is actively cooling
+    OFF side of the demand-driven chiller (with chiller_on_demand). Every
+    15 min, if the chiller has been on >20 min and NO VT is actively cooling
     (hvac_action == 'cooling'), turn it off. The 20-min on-guard avoids
-    cutting the chiller during smart_climate_prestart's 10-min cold-water
-    pre-charge (when VTs are not yet demanding). Respects 10-min min-cycle.
+    cutting it during the cold-water pre-charge before fancoils ramp.
+    Respects 10-min min-cycle. Runs 7 days/week.
   mode: single
   triggers:
   - trigger: time_pattern
@@ -955,64 +964,51 @@
       eco_preset: comfort
       frost_preset: frost
 - id: common_climate_schedule
-  alias: Common Spaces Climate Schedule (eco-by-default)
+  alias: Common Spaces Climate Schedule (comfort-default @ 27)
   description: >
-    Common open areas (OpenSpace, Entrance, Projects 2): eco-by-default
-    during work hours — target 27 °C (= COMMON eco_ac_temp). Common
-    spaces should NOT be cooled to comfort during work hours; users in
-    those areas are transient, and 27 °C is the standing rule. If a
-    common area truly needs comfort temp (e.g., big meeting in OpenSpace),
-    pull the preset to comfort manually via the dashboard.
+    Common open areas (OpenSpace, Entrance): COMFORT-default during work hours
+    — target 27 °C (COMMON comfort_ac_temp). 2026-06-20 redesign reverses the
+    earlier eco-by-default: common spaces now follow the same calendar as the
+    occupied offices (comfort 08:00–18:00) but at their own 27 °C comfort.
 
-    Schedule: preheat 07:30 → eco 08:00 → eco 17:00 → frost 19:00.
-    Pattern matches CS/Meeting (also eco-by-default).
-    Workdays only.
-
-    History:
-    - 2026-05-26: Mensa moved to dedicated schedule (lunch boost)
-    - 2026-06-04: Projects 2 moved BACK here (unoccupied, treated common)
-    - 2026-06-08: flipped to eco-by-default per Dagmar's standing rule
+    comfort 07:30–18:00 → **boil (frost @ 31) from 18:00** and all weekend.
+    The 17:00 slot re-applies comfort (eco_preset=comfort) so comfort holds
+    until 18:00. Manual override to eco possible if a space is unused.
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
       thermostats:
       - climate.fancoil_openspace
       - climate.fancoil_entrance
-      # Projects 2 REMOVED 2026-06-09 — unoccupied, kept dormant (off). It was
-      # being driven into cool by this schedule but its cool-mode preset has no
-      # valid _ac_temp, so target resolved to 0 °C → 100% demand runaway
-      # (0 °C frost-bug variant). Re-add here when the room is reoccupied AND
-      # its VT presets are reconfirmed via update_vt_presets.py.
       comfort_time: '08:00:00'
       eco_time: '17:00:00'
-      frost_time: '19:00:00'
+      frost_time: '18:00:00'
       enable_preheat: true
       preheat_time: '07:30:00'
-      # eco-by-default: comfort slot fires eco preset so room sits at
-      # 27 °C through work hours unless manually pulled to comfort.
-      comfort_preset: eco
-      eco_preset: eco
+      comfort_preset: comfort
+      # eco slot re-applies comfort → comfort held until 18:00 (no 17:00 drop)
+      eco_preset: comfort
       frost_preset: frost
 - id: cs_climate_schedule
-  alias: CS Climate Schedule (eco-by-default)
+  alias: CS + Projects 2 Climate Schedule (eco-default, hold all day)
   description: >
-    Customer Service: eco-by-default. The "comfort" slot fires `eco` so the
-    room sits in eco (target 27 °C) from 07:30 unless manually pulled to
-    `comfort` (target 25 °C) when the room is used.
+    Customer Service and Projects 2: eco-default. The 08:00 "comfort" slot
+    fires `eco`, and there is NO mid-day transition, so a manual override
+    (comfort/boost) HOLDS until 18:00 — CS is usually occupied all day. At
+    18:00 both evening slots resolve to **boil (frost @ 30)**, and the room
+    stays in boil overnight + weekends.
 
-    2026-06-18 change (Dagmar): if CS is on comfort, KEEP it until 18:00 — do
-    not drop to eco at 17:00. Implemented by removing the 17:00 eco re-assert
-    (no preset change 08:00→18:00, so a manual comfort persists) and going
-    straight to **frost at 18:00** (both evening slots resolve to frost),
-    aligned with the chiller hard-off at 18:00.
+    Projects 2 added here 2026-06-20 (eco-default, re-staffed). Note: P2's VT
+    may still need a one-time Options-flow reconfigure to fully un-wedge.
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
       thermostats:
       - climate.fancoil_cs
+      - climate.projects_2
       comfort_time: '08:00:00'
-      # No 17:00 transition: both eco + frost slots fire at 18:00 → frost, so
-      # whatever CS is in (eco default or a manual comfort) holds until 18:00.
+      # No 17:00 transition: both eco + frost slots fire at 18:00 → boil(frost),
+      # so a manual comfort/boost holds until 18:00.
       eco_time: '18:00:00'
       frost_time: '18:00:00'
       enable_preheat: true
@@ -1021,49 +1017,41 @@
       eco_preset: frost
       frost_preset: frost
 - id: meeting_climate_schedule
-  alias: Meeting Room Climate Schedule
+  alias: Meeting Room Climate Schedule (eco-default, 1 h manual revert)
   description: >
-    Meeting Room: eco preset all day by default. Lunch is no longer taken
-    in the meeting room (moved to Mensa 2026-05), so there's no scheduled
-    boost. When the room IS used for a meeting, manually set its preset
-    to `comfort` or `boost` via the dashboard — auto-revert (60 min for
-    boost) catches it. **Frost from 17:30 onwards** (no cooling after
-    office hours).
+    Meeting Room: eco-default. 08:00 sets eco; no mid-day transition. When the
+    room is used, manually set comfort/boost — the separate
+    `meeting_manual_revert` automation returns it to eco 1 hour later. At 18:00
+    → **boil (frost @ 30)**, held overnight + weekends.
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
       thermostats:
       - climate.fancoil_meeting
       comfort_time: '08:00:00'
-      eco_time: '17:00:00'
-      frost_time: '17:30:00'
-      # eco-by-default: the "comfort" slot fires the eco preset instead of comfort,
-      # so the room stays in eco from 08:00 through 17:00 unless manually overridden.
+      eco_time: '18:00:00'
+      frost_time: '18:00:00'
       comfort_preset: eco
-      eco_preset: eco
+      eco_preset: frost
       frost_preset: frost
 - id: mensa_climate_schedule
-  alias: Mensa Climate Schedule (comfort during work, eco evening, frost overnight)
+  alias: Mensa Climate Schedule (eco-default, lunch boost, boil 18:00)
   description: >
-    Mensa: comfort preset 07:30–17:00 (target 26 °C via the dedicated cool-mode
-    comfort_ac_temp = 26 set per-VT — Mensa opts out of Central inherit so it
-    has its own boost = 24.5 for the lunch ramp-up). Eco 17:00–19:00 (target
-    27 °C — must be set as eco_ac_temp = 27 on Mensa VT in the UI; Mensa
-    doesn't inherit Central). Frost preset overnight (19:00 → 30 °C). Lunch
-    boost handled by separate `mensa_lunch_boost` automation (12:00 → 14:00,
-    target 24.5 °C).
+    Mensa: eco-default (target 27 °C) 08:00–18:00, with a lunch BOOST (target
+    24 °C) 12:00–14:00 via the separate `mensa_lunch_boost` automation. No
+    mid-day eco re-assert, so a manual override holds. At 18:00 → **boil
+    (frost @ 30)**, held overnight + weekends. 2026-06-20: moved from
+    comfort-default to eco-default; frost_time 19:00 → 18:00.
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
       thermostats:
       - climate.climate_mensa
       comfort_time: '08:00:00'
-      eco_time: '17:00:00'
-      frost_time: '19:00:00'
-      enable_preheat: true
-      preheat_time: '07:30:00'
-      comfort_preset: comfort
-      eco_preset: eco
+      eco_time: '18:00:00'
+      frost_time: '18:00:00'
+      comfort_preset: eco
+      eco_preset: frost
       frost_preset: frost
 - id: mensa_lunch_boost
   alias: Mensa Lunch Boost (12-14)
@@ -1102,22 +1090,21 @@
       - condition: trigger
         id: lunch_end
       sequence:
+      # Mensa is eco-default (2026-06-20): after lunch boost, return to eco.
       - action: climate.set_preset_mode
         target:
           entity_id: climate.climate_mensa
         data:
-          preset_mode: comfort
+          preset_mode: eco
   mode: single
 - id: boost_auto_revert
-  alias: Boost Auto-Revert
+  alias: Boost Auto-Revert (→ comfort after 60 min or target reached)
   description: >
-    When a user sets any VT to boost via the dashboard thermostat card,
-    this automation converts it to a 60-minute timed preset and monitors
-    for target temperature reached. Reverts to scheduled preset on
-    whichever comes first: temp reached or 60 minutes elapsed.
-    EXEMPT: climate.climate_mensa — its lunch boost (12:00-14:00, via
-    mensa_lunch_boost automation) needs to run a full 2 hours and would
-    be incorrectly cut short by the 60-min auto-revert here.
+    2026-06-20: when a user sets a VT to boost, revert it to COMFORT after
+    whichever comes first — target temperature reached or 60 minutes.
+    EXEMPT: climate.climate_mensa (its lunch boost runs a full 2 h via
+    mensa_lunch_boost) and climate.fancoil_meeting (Meeting reverts to ECO
+    after 1 h via meeting_manual_revert — its rule wins).
   mode: parallel
   max: 9
   triggers:
@@ -1128,7 +1115,6 @@
     - climate.projects_1
     - climate.fancoil_cs
     - climate.fancoil_reception
-    - climate.fancoil_meeting
     - climate.fancoil_openspace
     - climate.fancoil_entrance
     - climate.projects_2
@@ -1137,35 +1123,54 @@
   actions:
   - variables:
       vt: "{{ trigger.entity_id }}"
-  - action: versatile_thermostat.set_timed_preset
+  - wait_template: >
+      {% set current = state_attr(vt, 'current_temperature') | float(0) %}
+      {% set target = state_attr(vt, 'temperature') | float(99) %}
+      {{ states(vt) == 'cool' and current <= target }}
+    timeout: '01:00:00'
+    continue_on_timeout: true
+  # Only revert if still in boost (user may have changed it meanwhile)
+  - condition: template
+    value_template: "{{ state_attr(vt, 'preset_mode') == 'boost' }}"
+  - action: climate.set_preset_mode
     target:
       entity_id: "{{ vt }}"
     data:
-      preset: boost
-      duration_minutes: 60
-  - repeat:
-      while:
-      - condition: template
-        value_template: >
-          {{ state_attr(vt, 'preset_mode') == 'boost' }}
-      sequence:
-      - delay:
-          seconds: 30
-      - condition: template
-        value_template: >
-          {% set current = state_attr(vt, 'current_temperature') | float(0) %}
-          {% set target = state_attr(vt, 'temperature') | float(0) %}
-          {% set mode = states(vt) %}
-          {% if mode == 'heat' %}
-            {{ current >= target }}
-          {% elif mode == 'cool' %}
-            {{ current <= target }}
-          {% else %}
-            true
-          {% endif %}
-      - action: versatile_thermostat.cancel_timed_preset
-        target:
-          entity_id: "{{ vt }}"
+      preset_mode: comfort
+
+- id: meeting_manual_revert
+  alias: Meeting Manual Override Revert (→ eco after 1 h)
+  description: >
+    2026-06-20: Meeting Room is eco-default but occasionally used. Any manual
+    override to comfort or boost reverts to eco 1 hour later (set comfort 10:30
+    → eco 11:30). mode=restart so a fresh override restarts the hour. Only
+    reverts during office hours (08:00–18:00); after 18:00 the boil schedule
+    governs, so it leaves it alone.
+  mode: restart
+  triggers:
+  - trigger: state
+    entity_id: climate.fancoil_meeting
+    attribute: preset_mode
+    to:
+    - comfort
+    - boost
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.workday_sensor
+    state: 'on'
+  actions:
+  - delay: '01:00:00'
+  - condition: template
+    value_template: "{{ state_attr('climate.fancoil_meeting','preset_mode') in ['comfort','boost'] }}"
+  - condition: time
+    after: '08:00:00'
+    before: '18:00:00'
+  - action: climate.set_preset_mode
+    target:
+      entity_id: climate.fancoil_meeting
+    data:
+      preset_mode: eco
+
 - id: cs_sun_shade
   alias: CS Sun Shade (Morning) [DEPRECATED - replaced by sun_shade_cs blueprint]
   description: >
