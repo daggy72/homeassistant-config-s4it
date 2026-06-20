@@ -595,6 +595,72 @@
     target:
       entity_id: switch.shellypro4pm_ece334eaf568_switch_2
   mode: single
+
+- id: offhours_boil_enforcer
+  alias: Off-hours / Weekend Boil Protection Enforcer
+  description: >
+    2026-06-20: makes boil protection actually run. During summer, on
+    non-workdays OR outside office hours (18:00–08:00), every VT must sit in
+    COOL mode + BOIL (frost) preset so it idles until a room exceeds 30/31 °C
+    then cools it back down (demand-driven chiller follows). Runs every 10 min
+    + on HA start + when entering off-hours. Without this, a weekend/evening
+    restart leaves VTs off or on stale presets and boil protection never
+    engages. Re-selecting frost also reloads frost_ac_temp, clearing any stale
+    0 °C target (e.g. Projects 2).
+  mode: single
+  max_exceeded: silent
+  triggers:
+  - trigger: time_pattern
+    minutes: '/10'
+  - trigger: homeassistant
+    event: start
+  - trigger: time
+    at: '18:00:00'
+  conditions:
+  - condition: state
+    entity_id: input_select.climate_season
+    state: summer
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: binary_sensor.workday_sensor
+      state: 'off'
+    - condition: time
+      after: '18:00:00'
+      before: '08:00:00'
+  actions:
+  - repeat:
+      for_each:
+      - climate.fancoil_dagmar
+      - climate.fancoil_tania
+      - climate.projects_1
+      - climate.fancoil_reception
+      - climate.fancoil_cs
+      - climate.fancoil_meeting
+      - climate.fancoil_openspace
+      - climate.fancoil_entrance
+      - climate.climate_mensa
+      - climate.projects_2
+      sequence:
+      - if:
+        - condition: template
+          value_template: "{{ states(repeat.item) not in ['cool','unavailable','unknown'] }}"
+        then:
+        - action: climate.set_hvac_mode
+          target:
+            entity_id: "{{ repeat.item }}"
+          data:
+            hvac_mode: cool
+      - if:
+        - condition: template
+          value_template: "{{ state_attr(repeat.item,'preset_mode') != 'frost' }}"
+        then:
+        - action: climate.set_preset_mode
+          target:
+            entity_id: "{{ repeat.item }}"
+          data:
+            preset_mode: frost
+
 - id: warehouse_cell_profile_guard
   alias: Warehouse Cell Profile Guard
   description: >
@@ -1326,7 +1392,9 @@
 
 - id: sun_shade_mensa
   alias: Sun Shade — Mensa
-  description: Intelligent sun shade for Mensa (SSW, azimuth 170–240°)
+  description: Intelligent sun shade for Mensa (SSW, azimuth 150–260°). Window
+    widened 2026-06-20 (was 170–240°, elevation 15° → 8°) — Mensa was getting
+    too much sun; shade now closes earlier and stays down later.
   use_blueprint:
     path: custom/intelligent_sun_shade.yaml
     input:
@@ -1338,9 +1406,9 @@
       predictive_close_dt: input_datetime.mensa_predictive_close_at
       reactive_close_dt: input_datetime.mensa_reactive_close_at
       forecast_snapshot: input_number.mensa_forecast_max_at_window_start
-      sun_azimuth_min: 170
-      sun_azimuth_max: 240
-      sun_elevation_min: 15
+      sun_azimuth_min: 150
+      sun_azimuth_max: 260
+      sun_elevation_min: 8
       room_label: "Mensa"
 
 - id: fancoil_0_10v_min_floor_cool
