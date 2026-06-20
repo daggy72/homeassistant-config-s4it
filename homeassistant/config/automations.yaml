@@ -564,25 +564,18 @@
   mode: single
 
 - id: chiller_idle_off_no_demand
-  alias: Chiller Idle Off — no cooling demand
+  alias: Chiller Idle Off — no cooling demand (sustained 30 min)
   description: >
-    OFF side of the demand-driven chiller (with chiller_on_demand). Every
-    15 min, if the chiller has been on >20 min and NO VT is actively cooling
-    (hvac_action == 'cooling'), turn it off. The 20-min on-guard avoids
-    cutting it during the cold-water pre-charge before fancoils ramp.
-    Respects 10-min min-cycle. Runs 7 days/week.
+    OFF side of the demand-driven chiller (with chiller_on_demand). Turns the
+    chiller off only after NO VT has been cooling for a SUSTAINED 30 minutes —
+    not on a brief lull. This avoids the failure mode where an eager idle-off
+    drops the chiller during a short gap, then demand returns inside the 10-min
+    min-cycle lockout, leaving fancoils blowing warm air (observed 2026-06-20).
+    On hot days with continuous demand it simply never fires. Respects the
+    10-min min-cycle. Runs 7 days/week.
   mode: single
   triggers:
-  - trigger: time_pattern
-    minutes: '/15'
-  conditions:
-  - condition: state
-    entity_id: switch.shellypro4pm_ece334eaf568_switch_2
-    state: 'on'
-  - condition: template
-    value_template: >
-      {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() >= 1200 }}
-  - condition: template
+  - trigger: template
     value_template: >
       {% set zones = [
         'climate.fancoil_dagmar','climate.fancoil_tania','climate.projects_1',
@@ -590,6 +583,14 @@
         'climate.fancoil_openspace','climate.fancoil_entrance','climate.climate_mensa',
         'climate.projects_2'] %}
       {{ zones | map('state_attr','hvac_action') | select('eq','cooling') | list | length == 0 }}
+    for: '00:30:00'
+  conditions:
+  - condition: state
+    entity_id: switch.shellypro4pm_ece334eaf568_switch_2
+    state: 'on'
+  - condition: template
+    value_template: >
+      {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() >= 600 }}
   actions:
   - action: switch.turn_off
     target:

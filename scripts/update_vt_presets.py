@@ -54,8 +54,14 @@ STORAGE_PATH = Path("homeassistant/config/.storage/core.config_entries")
 # this target if it exceeds it (offices 30, common 31).
 #   OFFICE group: comfort 25, eco 27, boost 24, boil(frost) 30
 #   COMMON group: comfort 27, eco 29, boost 25, boil(frost) 31
-OFFICE = dict(comfort_ac_temp=25.0, eco_ac_temp=27.0, boost_ac_temp=24.0, frost_ac_temp=30.0)
-COMMON = dict(comfort_ac_temp=27.0, eco_ac_temp=29.0, boost_ac_temp=25.0, frost_ac_temp=31.0)
+# use_presets_central_config=False on every zone so each VT uses ITS OWN
+# per-group preset values below — not the single shared "Central configuration"
+# (which can only hold one set, and was overriding OpenSpace/Entrance to
+# comfort 26 / eco 28 / boost 23 / frost 30 — the "eco OpenSpace = 26" bug).
+OFFICE = dict(comfort_ac_temp=25.0, eco_ac_temp=27.0, boost_ac_temp=24.0,
+              frost_ac_temp=30.0, use_presets_central_config=False)
+COMMON = dict(comfort_ac_temp=27.0, eco_ac_temp=29.0, boost_ac_temp=25.0,
+              frost_ac_temp=31.0, use_presets_central_config=False)
 
 ZONE_PRESETS = {
     "Fancoil Dagmar": OFFICE,
