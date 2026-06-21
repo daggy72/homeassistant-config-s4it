@@ -633,7 +633,9 @@
       before: '08:00:00'
   actions:
   - variables:
-      # boil target per zone: offices 30, common (OpenSpace/Entrance) 31
+      # Boil target = 30 for ALL zones. The VT setpoint slider max_temp is 30
+      # on every zone (global VT limit), so 31 is out of range — common is
+      # capped at 30 too. Raising it would need the VT temp range reconfigured.
       boil_map:
         climate.fancoil_dagmar: 30
         climate.fancoil_tania: 30
@@ -643,8 +645,8 @@
         climate.fancoil_meeting: 30
         climate.climate_mensa: 30
         climate.projects_2: 30
-        climate.fancoil_openspace: 31
-        climate.fancoil_entrance: 31
+        climate.fancoil_openspace: 30
+        climate.fancoil_entrance: 30
   - repeat:
       for_each: "{{ boil_map.keys() | list }}"
       sequence:
