@@ -600,14 +600,16 @@
 - id: offhours_boil_enforcer
   alias: Off-hours / Weekend Boil Protection Enforcer
   description: >
-    2026-06-20: makes boil protection actually run. During summer, on
-    non-workdays OR outside office hours (18:00–08:00), every VT must sit in
-    COOL mode + BOIL (frost) preset so it idles until a room exceeds 30/31 °C
+    Makes boil protection actually run. During summer, on non-workdays OR
+    outside office hours (18:00–08:00), every VT must sit in COOL mode at the
+    BOIL target (office 30 / common 31) so it idles until a room exceeds it,
     then cools it back down (demand-driven chiller follows). Runs every 10 min
-    + on HA start + when entering off-hours. Without this, a weekend/evening
-    restart leaves VTs off or on stale presets and boil protection never
-    engages. Re-selecting frost also reloads frost_ac_temp, clearing any stale
-    0 °C target (e.g. Projects 2).
+    + on HA start + at 18:00.
+
+    2026-06-21 fix: the VTs have NO selectable 'frost' preset (preset_modes =
+    none/eco/comfort/boost), so set_preset_mode('frost') errored and nothing
+    applied. Boil is now done as preset 'none' + set_temperature to the boil
+    target. This also clears any stale 0 °C target (e.g. Projects 2).
   mode: single
   max_exceeded: silent
   triggers:
@@ -630,37 +632,52 @@
       after: '18:00:00'
       before: '08:00:00'
   actions:
+  - variables:
+      # boil target per zone: offices 30, common (OpenSpace/Entrance) 31
+      boil_map:
+        climate.fancoil_dagmar: 30
+        climate.fancoil_tania: 30
+        climate.projects_1: 30
+        climate.fancoil_reception: 30
+        climate.fancoil_cs: 30
+        climate.fancoil_meeting: 30
+        climate.climate_mensa: 30
+        climate.projects_2: 30
+        climate.fancoil_openspace: 31
+        climate.fancoil_entrance: 31
   - repeat:
-      for_each:
-      - climate.fancoil_dagmar
-      - climate.fancoil_tania
-      - climate.projects_1
-      - climate.fancoil_reception
-      - climate.fancoil_cs
-      - climate.fancoil_meeting
-      - climate.fancoil_openspace
-      - climate.fancoil_entrance
-      - climate.climate_mensa
-      - climate.projects_2
+      for_each: "{{ boil_map.keys() | list }}"
       sequence:
+      - variables:
+          z: "{{ repeat.item }}"
+          boil: "{{ boil_map[repeat.item] | float }}"
       - if:
         - condition: template
-          value_template: "{{ states(repeat.item) not in ['cool','unavailable','unknown'] }}"
+          value_template: "{{ states(z) not in ['cool','unavailable','unknown'] }}"
         then:
         - action: climate.set_hvac_mode
           target:
-            entity_id: "{{ repeat.item }}"
+            entity_id: "{{ z }}"
           data:
             hvac_mode: cool
       - if:
         - condition: template
-          value_template: "{{ state_attr(repeat.item,'preset_mode') != 'frost' }}"
+          value_template: "{{ state_attr(z,'preset_mode') != 'none' }}"
         then:
         - action: climate.set_preset_mode
           target:
-            entity_id: "{{ repeat.item }}"
+            entity_id: "{{ z }}"
           data:
-            preset_mode: frost
+            preset_mode: none
+      - if:
+        - condition: template
+          value_template: "{{ (state_attr(z,'temperature') | float(0)) != boil }}"
+        then:
+        - action: climate.set_temperature
+          target:
+            entity_id: "{{ z }}"
+          data:
+            temperature: "{{ boil }}"
 
 - id: warehouse_cell_profile_guard
   alias: Warehouse Cell Profile Guard
@@ -1029,7 +1046,10 @@
       comfort_preset: comfort
       # eco slot re-applies comfort (keep comfort until 18:00, no 17:00 drop)
       eco_preset: comfort
-      frost_preset: frost
+      # 'frost' is NOT a selectable VT preset → boil is enforced as preset
+      # 'none' + set_temperature(30/31) by offhours_boil_enforcer. This slot
+      # just parks the room in neutral 'none'; the enforcer sets the boil target.
+      frost_preset: none
 - id: common_climate_schedule
   alias: Common Spaces Climate Schedule (comfort-default @ 27)
   description: >
@@ -1055,7 +1075,10 @@
       comfort_preset: comfort
       # eco slot re-applies comfort → comfort held until 18:00 (no 17:00 drop)
       eco_preset: comfort
-      frost_preset: frost
+      # 'frost' is NOT a selectable VT preset → boil is enforced as preset
+      # 'none' + set_temperature(30/31) by offhours_boil_enforcer. This slot
+      # just parks the room in neutral 'none'; the enforcer sets the boil target.
+      frost_preset: none
 - id: cs_climate_schedule
   alias: CS + Projects 2 Climate Schedule (eco-default, hold all day)
   description: >
@@ -1081,8 +1104,11 @@
       enable_preheat: true
       preheat_time: '07:30:00'
       comfort_preset: eco
-      eco_preset: frost
-      frost_preset: frost
+      eco_preset: none
+      # 'frost' is NOT a selectable VT preset → boil is enforced as preset
+      # 'none' + set_temperature(30/31) by offhours_boil_enforcer. This slot
+      # just parks the room in neutral 'none'; the enforcer sets the boil target.
+      frost_preset: none
 - id: meeting_climate_schedule
   alias: Meeting Room Climate Schedule (eco-default, 1 h manual revert)
   description: >
@@ -1099,8 +1125,11 @@
       eco_time: '18:00:00'
       frost_time: '18:00:00'
       comfort_preset: eco
-      eco_preset: frost
-      frost_preset: frost
+      eco_preset: none
+      # 'frost' is NOT a selectable VT preset → boil is enforced as preset
+      # 'none' + set_temperature(30/31) by offhours_boil_enforcer. This slot
+      # just parks the room in neutral 'none'; the enforcer sets the boil target.
+      frost_preset: none
 - id: mensa_climate_schedule
   alias: Mensa Climate Schedule (eco-default, lunch boost, boil 18:00)
   description: >
@@ -1118,8 +1147,11 @@
       eco_time: '18:00:00'
       frost_time: '18:00:00'
       comfort_preset: eco
-      eco_preset: frost
-      frost_preset: frost
+      eco_preset: none
+      # 'frost' is NOT a selectable VT preset → boil is enforced as preset
+      # 'none' + set_temperature(30/31) by offhours_boil_enforcer. This slot
+      # just parks the room in neutral 'none'; the enforcer sets the boil target.
+      frost_preset: none
 - id: mensa_lunch_boost
   alias: Mensa Lunch Boost (12-14)
   description: >
