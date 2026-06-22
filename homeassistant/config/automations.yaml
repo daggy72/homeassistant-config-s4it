@@ -533,34 +533,66 @@
       entity_id: switch.shellypro4pm_ece334eaf568_switch_2
   mode: single
 
-- id: chiller_prestart_forecast
-  alias: Chiller Pre-start — warm-forecast morning
+- id: heatwave_morning_precool
+  alias: Heatwave Morning Pre-cool (06:00 warm workdays)
   description: >
-    2026-06-20: on warm-forecast mornings (7 days), start the chiller at 07:30
-    so cold water is ready before rooms heat / before 08:00 comfort. Only if
-    today's forecast max >= 27 C, season summer, chiller off, min-cycle ok. If
-    no real demand follows, chiller_idle_off_no_demand turns it back off.
+    2026-06-22 (Dagmar, hot week): on warm/hot WORKDAY mornings, start BOTH the
+    chiller AND daytime cooling at 06:00 (not 08:00) so rooms reach target before
+    staff arrive. Yesterday the chiller was on early but rooms weren't put into
+    cooling until 08:00, so the building stayed warm. Fires if today's forecast
+    max >= 26 C. The fancoil<->chiller interlock keeps fans off until the water
+    is cold (~3 min), so no warm air. The boil enforcer ends its workday
+    overnight window at 06:00 so it doesn't undo this.
+    Engages comfort on the always-occupied offices + common spaces, eco on the
+    eco-default rooms (CS/Meeting/Mensa/P2). The 08:00 schedule then takes over.
   mode: single
   triggers:
   - trigger: time
-    at: '07:30:00'
+    at: '06:00:00'
   conditions:
   - condition: state
     entity_id: input_select.climate_season
     state: summer
   - condition: state
-    entity_id: switch.shellypro4pm_ece334eaf568_switch_2
-    state: 'off'
+    entity_id: binary_sensor.workday_sensor
+    state: 'on'
   - condition: numeric_state
     entity_id: sensor.outdoor_forecast_max_today
-    above: 27
-  - condition: template
-    value_template: >
-      {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() >= 600 }}
+    above: 26
   actions:
-  - action: switch.turn_on
-    target:
+  # Chiller on (if off + min-cycle); interlock holds fans off until cold.
+  - if:
+    - condition: state
       entity_id: switch.shellypro4pm_ece334eaf568_switch_2
+      state: 'off'
+    - condition: template
+      value_template: >
+        {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() >= 600 }}
+    then:
+    - action: switch.turn_on
+      target:
+        entity_id: switch.shellypro4pm_ece334eaf568_switch_2
+  # Engage daytime cooling early (zones are already in cool mode from boil)
+  - action: climate.set_preset_mode
+    target:
+      entity_id:
+      - climate.fancoil_dagmar
+      - climate.fancoil_tania
+      - climate.projects_1
+      - climate.fancoil_reception
+      - climate.fancoil_openspace
+      - climate.fancoil_entrance
+    data:
+      preset_mode: comfort
+  - action: climate.set_preset_mode
+    target:
+      entity_id:
+      - climate.fancoil_cs
+      - climate.fancoil_meeting
+      - climate.climate_mensa
+      - climate.projects_2
+    data:
+      preset_mode: eco
   mode: single
 
 - id: chiller_idle_off_no_demand
@@ -628,9 +660,12 @@
     - condition: state
       entity_id: binary_sensor.workday_sensor
       state: 'off'
+    # Workday overnight boil ends at 06:00 so heatwave_morning_precool can
+    # engage cooling at 06:00 without the enforcer immediately re-boiling it.
+    # (On cool days nothing cools 06:00-08:00; the 08:00 schedule takes over.)
     - condition: time
       after: '18:00:00'
-      before: '08:00:00'
+      before: '06:00:00'
   actions:
   - variables:
       # Boil target = 30 for ALL zones. The VT setpoint slider max_temp is 30
