@@ -18,8 +18,7 @@
       set_value:
         - if:
             - condition: template
-              # Interlock: only drive the 0-10V output if the chiller is cold.
-              value_template: "{{ value | int > 0 and is_state('binary_sensor.chiller_cold','on') }}"
+              value_template: "{{ value | int > 0 }}"
           then:
             - action: light.turn_on
               target:
@@ -46,8 +45,7 @@
       set_value:
         - if:
             - condition: template
-              # Interlock: only drive the 0-10V output if the chiller is cold.
-              value_template: "{{ value | int > 0 and is_state('binary_sensor.chiller_cold','on') }}"
+              value_template: "{{ value | int > 0 }}"
           then:
             - action: light.turn_on
               target:
@@ -74,8 +72,7 @@
       set_value:
         - if:
             - condition: template
-              # Interlock: only drive the 0-10V output if the chiller is cold.
-              value_template: "{{ value | int > 0 and is_state('binary_sensor.chiller_cold','on') }}"
+              value_template: "{{ value | int > 0 }}"
           then:
             - action: light.turn_on
               target:
@@ -110,8 +107,7 @@
       set_value:
         - if:
             - condition: template
-              # Interlock: only drive the 0-10V output if the chiller is cold.
-              value_template: "{{ value | int > 0 and is_state('binary_sensor.chiller_cold','on') }}"
+              value_template: "{{ value | int > 0 }}"
           then:
             - action: light.turn_on
               target:
@@ -138,8 +134,7 @@
       set_value:
         - variables:
             step: >
-              {% if not is_state('binary_sensor.chiller_cold','on') %}0
-              {% elif value | int <= 0 %}0
+              {% if value | int <= 0 %}0
               {% elif value | int <= 17 %}1
               {% elif value | int <= 33 %}2
               {% elif value | int <= 50 %}3
@@ -216,8 +211,7 @@
       set_value:
         - variables:
             step: >
-              {% if not is_state('binary_sensor.chiller_cold','on') %}0
-              {% elif value | int <= 0 %}0
+              {% if value | int <= 0 %}0
               {% elif value | int <= 17 %}1
               {% elif value | int <= 33 %}2
               {% elif value | int <= 50 %}3
@@ -293,8 +287,7 @@
       set_value:
         - variables:
             step: >
-              {% if not is_state('binary_sensor.chiller_cold','on') %}0
-              {% elif value | int <= 0 %}0
+              {% if value | int <= 0 %}0
               {% elif value | int <= 17 %}1
               {% elif value | int <= 33 %}2
               {% elif value | int <= 50 %}3
@@ -370,8 +363,7 @@
       set_value:
         - variables:
             step: >
-              {% if not is_state('binary_sensor.chiller_cold','on') %}0
-              {% elif value | int <= 0 %}0
+              {% if value | int <= 0 %}0
               {% elif value | int <= 17 %}1
               {% elif value | int <= 33 %}2
               {% elif value | int <= 50 %}3
@@ -450,8 +442,7 @@
         # for large gaps (cold morning preheat).
         - variables:
             spd: >
-              {% if not is_state('binary_sensor.chiller_cold','on') %}0
-              {% elif value | int <= 0 %}0
+              {% if value | int <= 0 %}0
               {% elif value | int <= 50 %}33
               {% elif value | int <= 80 %}66
               {% else %}100
@@ -498,8 +489,7 @@
       set_value:
         - variables:
             spd: >
-              {% if not is_state('binary_sensor.chiller_cold','on') %}0
-              {% elif value | int <= 0 %}0
+              {% if value | int <= 0 %}0
               {% elif value | int <= 33 %}33
               {% elif value | int <= 67 %}66
               {% else %}100
@@ -768,16 +758,3 @@
       device_class: temperature
       state_class: measurement
       icon: mdi:weather-sunny-alert
-
-# --- Fancoil ↔ chiller interlock signal (2026-06-20) ---
-# True only when the chiller has been ON for >= 3 minutes (water is flowing
-# cold). Every fancoil template-number set_value gates on this, so a fancoil
-# never spins while the chiller is off OR during the first 3 min of warm-up —
-# no more warm-air circulation. Re-evaluates every minute (now() tick).
-- binary_sensor:
-    - name: "Chiller Cold"
-      unique_id: chiller_cold
-      icon: mdi:snowflake-check
-      state: >
-        {{ is_state('switch.shellypro4pm_ece334eaf568_switch_2', 'on')
-           and (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() >= 180 }}
