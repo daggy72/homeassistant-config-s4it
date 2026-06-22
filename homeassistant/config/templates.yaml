@@ -17,14 +17,15 @@
         {% endif %}
       set_value:
         # MAINTAIN BAND (2026-06-22): while cooling in comfort/eco, hold the
-        # analog valve at a quiet 15-30% — never 0 (annoying on/off cycling),
+        # analog valve in a quiet band: floor 15% (never 0 = no cycling),
+        # ceiling 70% (cools warm rooms; below the 100% scream) — never 0 (annoying on/off cycling),
         # never 100 (noise). boost/boil/off pass through. Over-cool-safe because
         # the chiller is demand-driven (idles when satisfied → 15% just moves air).
         - variables:
             out: >
               {% set v = value | int %}
               {% if is_state('climate.climate_mensa','cool') and state_attr('climate.climate_mensa','preset_mode') in ['comfort','eco'] %}
-                {{ [[v, 15] | max, 30] | min if v > 0 else 15 }}
+                {{ [[v, 15] | max, 70] | min if v > 0 else 15 }}
               {% else %}
                 {{ v }}
               {% endif %}
@@ -60,7 +61,7 @@
             out: >
               {% set v = value | int %}
               {% if is_state('climate.projects_1','cool') and state_attr('climate.projects_1','preset_mode') in ['comfort','eco'] %}
-                {{ [[v, 15] | max, 30] | min if v > 0 else 15 }}
+                {{ [[v, 15] | max, 70] | min if v > 0 else 15 }}
               {% else %}
                 {{ v }}
               {% endif %}
@@ -96,7 +97,7 @@
             out: >
               {% set v = value | int %}
               {% if is_state('climate.projects_2','cool') and state_attr('climate.projects_2','preset_mode') in ['comfort','eco'] %}
-                {{ [[v, 15] | max, 30] | min if v > 0 else 15 }}
+                {{ [[v, 15] | max, 70] | min if v > 0 else 15 }}
               {% else %}
                 {{ v }}
               {% endif %}
@@ -140,7 +141,7 @@
             out: >
               {% set v = value | int %}
               {% if is_state('climate.fancoil_dagmar','cool') and state_attr('climate.fancoil_dagmar','preset_mode') in ['comfort','eco'] %}
-                {{ [[v, 15] | max, 30] | min if v > 0 else 15 }}
+                {{ [[v, 15] | max, 70] | min if v > 0 else 15 }}
               {% else %}
                 {{ v }}
               {% endif %}
