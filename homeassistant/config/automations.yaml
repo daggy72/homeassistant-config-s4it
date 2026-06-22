@@ -241,12 +241,18 @@
       Forcing comfort at evening restarts caused over-cooling at 21:30 (target
       25 °C in a 30 °C room → max demand).
   triggers:
+  # Two startup triggers for reliability: the `homeassistant_started` event can
+  # be MISSED if the automation registers a moment after it fires (race seen
+  # 2026-06-22 — fans never started). The canonical `homeassistant start` event
+  # is delivered to automations loaded at boot, so it catches the case the other
+  # misses. mode:single → whichever fires first runs, the other is ignored.
+  - trigger: homeassistant
+    event: start
   - trigger: event
     event_type: homeassistant_started
   conditions: []
   actions:
-  # Short additional delay for VT's per-entity async init to settle after
-  # the homeassistant_started event.
+  # Delay for VT per-entity async init to settle before we restore + nudge.
   - delay:
       seconds: 30
   - variables:
