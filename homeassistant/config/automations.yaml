@@ -274,10 +274,33 @@
       entity_id: "{{ all_thermostats }}"
     data:
       hvac_mode: "{{ target_hvac | trim }}"
-  # NOTE: intentionally NOT touching preset_mode. Restored preset from
-  # restore_state is correct for current time-of-day (schedule blueprints
-  # had set eco/frost/comfort before the restart). Forcing comfort here
-  # caused over-cooling at evening restarts (2026-05-26 21:24 incident).
+  # NOTE: intentionally NOT changing which preset is active — restored preset
+  # is correct for the time-of-day. Forcing comfort here caused over-cooling at
+  # evening restarts (2026-05-26 21:24 incident).
+  #
+  # 2026-06-22: after a restart a VT restores its preset but does NOT re-drive
+  # the valve until its next regulation cycle (~5 min), so fans sat idle and had
+  # to be toggled by hand. Wait for the VTs to finish init, then RE-APPLY each
+  # cooling zone's CURRENT preset (eco/comfort/boost) — this forces a fresh
+  # regulation + valve write so the fans start promptly. 'none'/boil zones are
+  # left to offhours_boil_enforcer (re-applying 'none' could drop their manual
+  # target).
+  - delay:
+      seconds: 150
+  - repeat:
+      for_each: "{{ all_thermostats }}"
+      sequence:
+      - if:
+        - condition: template
+          value_template: >
+            {{ states(repeat.item) == 'cool'
+               and state_attr(repeat.item,'preset_mode') in ['eco','comfort','boost'] }}
+        then:
+        - action: climate.set_preset_mode
+          target:
+            entity_id: "{{ repeat.item }}"
+          data:
+            preset_mode: "{{ state_attr(repeat.item,'preset_mode') }}"
   mode: single
 # 2026-06-20: chiller_end_of_day_off (18:00 hard-off) and
 # chiller_safety_off_weekend REMOVED. They blocked the demand-driven model and
