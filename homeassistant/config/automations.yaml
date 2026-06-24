@@ -1169,7 +1169,10 @@
 
 - id: sun_shade_cs
   alias: Sun Shade — CS
-  description: Intelligent sun shade for Customer Service (ESE, azimuth 90–150°)
+  description: Intelligent sun shade for Customer Service (ESE→S, azimuth 90–180°).
+    Window widened 2026-06-24 (was 90–150°, elev 15° → 8°) — the shade was
+    re-opening at 150° while the sun was still entering and warming the room;
+    now it stays down through midday/south and at lower sun angles.
   use_blueprint:
     path: custom/intelligent_sun_shade.yaml
     input:
@@ -1182,6 +1185,6 @@
       reactive_close_dt: input_datetime.cs_reactive_close_at
       forecast_snapshot: input_number.cs_forecast_max_at_window_start
       sun_azimuth_min: 90
-      sun_azimuth_max: 150
-      sun_elevation_min: 15
+      sun_azimuth_max: 180
+      sun_elevation_min: 8
       room_label: "CS"
