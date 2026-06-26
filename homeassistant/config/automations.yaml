@@ -363,7 +363,6 @@
   - action: switch.turn_on
     target:
       entity_id: switch.shellypro4pm_ece334eaf568_switch_2
-  mode: single
 
 - id: heatwave_morning_precool
   alias: Heatwave Morning Pre-cool (06:00 warm workdays)
@@ -425,7 +424,6 @@
       - climate.projects_2
     data:
       preset_mode: eco
-  mode: single
 
 - id: chiller_idle_off_no_demand
   alias: Chiller Idle Off — no cooling demand (sustained 30 min)
@@ -459,7 +457,6 @@
   - action: switch.turn_off
     target:
       entity_id: switch.shellypro4pm_ece334eaf568_switch_2
-  mode: single
 
 - id: offhours_boil_enforcer
   alias: Off-hours / Weekend Boil Protection Enforcer
@@ -823,8 +820,8 @@
 - id: office_climate_schedule
   alias: Office Climate Schedule
   description: >
-    Office workspaces (Dagmar, Tania, Projects 1, Reception):
-    **comfort preset held 07:30–18:00** (target 25.5 °C), then **frost from
+    Office workspaces (Dagmar, Tania, Projects 1, Reception, CS):
+    **comfort preset held 07:30–18:00**, then **frost from
     18:00** (target 30 °C = no cooling, aligns with chiller hard-off at 18:00).
     Workdays only.
 
@@ -832,8 +829,8 @@
     17:00. Implemented by making the 17:00 eco slot re-apply comfort
     (eco_preset=comfort, a no-op keep) and moving frost_time 17:30 → 18:00.
 
-    CS moved to own eco-by-default schedule 2026-05-26; Projects 2 moved BACK
-    to common 2026-06-04 (P2 currently unoccupied, behaves as common space).
+    2026-06-26: CS added here (comfort-default — now mostly occupied all day).
+    Projects 2 stays eco-default in its own schedule.
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
@@ -842,6 +839,7 @@
       - climate.fancoil_tania
       - climate.projects_1
       - climate.fancoil_reception
+      - climate.fancoil_cs
       comfort_time: '08:00:00'
       eco_time: '17:00:00'
       frost_time: '18:00:00'
@@ -884,21 +882,21 @@
       # just parks the room in neutral 'none'; the enforcer sets the boil target.
       frost_preset: none
 - id: cs_climate_schedule
-  alias: CS + Projects 2 Climate Schedule (eco-default, hold all day)
+  alias: Projects 2 Climate Schedule (eco-default, hold all day)
   description: >
-    Customer Service and Projects 2: eco-default. The 08:00 "comfort" slot
-    fires `eco`, and there is NO mid-day transition, so a manual override
-    (comfort/boost) HOLDS until 18:00 — CS is usually occupied all day. At
-    18:00 both evening slots resolve to **boil (frost @ 30)**, and the room
-    stays in boil overnight + weekends.
+    Projects 2: eco-default. The 08:00 "comfort" slot fires `eco`, and there
+    is NO mid-day transition, so a manual override (comfort/boost) HOLDS until
+    18:00. At 18:00 both evening slots resolve to **boil (frost @ 30)**, and the
+    room stays in boil overnight + weekends.
 
-    Projects 2 added here 2026-06-20 (eco-default, re-staffed). Note: P2's VT
-    may still need a one-time Options-flow reconfigure to fully un-wedge.
+    2026-06-26: CS split out to the office (comfort) schedule; this schedule now
+    drives Projects 2 only. Automation id kept as `cs_climate_schedule` to avoid
+    orphaning the entity. P2's VT may still need a one-time Options-flow
+    reconfigure to fully un-wedge.
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
       thermostats:
-      - climate.fancoil_cs
       - climate.projects_2
       comfort_time: '08:00:00'
       # No 17:00 transition: both eco + frost slots fire at 18:00 → boil(frost),
@@ -935,13 +933,13 @@
       # just parks the room in neutral 'none'; the enforcer sets the boil target.
       frost_preset: none
 - id: mensa_climate_schedule
-  alias: Mensa Climate Schedule (eco-default, lunch boost, boil 18:00)
+  alias: Mensa Climate Schedule (comfort-default, lunch boost, boil 18:00)
   description: >
-    Mensa: eco-default (target 27 °C) 08:00–18:00, with a lunch BOOST (target
+    Mensa: comfort-default (target 26 °C) 08:00–18:00, with a lunch BOOST (target
     24 °C) 12:00–14:00 via the separate `mensa_lunch_boost` automation. No
-    mid-day eco re-assert, so a manual override holds. At 18:00 → **boil
-    (frost @ 30)**, held overnight + weekends. 2026-06-20: moved from
-    comfort-default to eco-default; frost_time 19:00 → 18:00.
+    mid-day re-assert, so a manual override holds. At 18:00 → **boil
+    (frost @ 30)**, held overnight + weekends. 2026-06-25: moved from
+    eco-default back to comfort-default during work hours.
   use_blueprint:
     path: custom/office_climate_schedule.yaml
     input:
@@ -950,7 +948,7 @@
       comfort_time: '08:00:00'
       eco_time: '18:00:00'
       frost_time: '18:00:00'
-      comfort_preset: eco
+      comfort_preset: comfort
       eco_preset: none
       # 'frost' is NOT a selectable VT preset → boil is enforced as preset
       # 'none' + set_temperature(30/31) by offhours_boil_enforcer. This slot
@@ -961,7 +959,7 @@
   description: >
     Mensa lunch break: stronger cooling from 12:00 to 14:00 to handle the
     body-heat + cooking load. Sets the boost preset (cool-mode boost_ac_temp
-    for Mensa = 24.5 °C). At 14:00 sets back to comfort (26 °C).
+    for Mensa = 24 °C). At 14:00 sets back to comfort (26 °C).
     Note: Mensa is EXEMPT from boost_auto_revert (which would otherwise
     auto-cancel after 60 min), so this 2-hour window is honoured fully.
   triggers:
@@ -993,12 +991,12 @@
       - condition: trigger
         id: lunch_end
       sequence:
-      # Mensa is eco-default (2026-06-20): after lunch boost, return to eco.
+      # Mensa is comfort-default (2026-06-25): after lunch boost, return to comfort.
       - action: climate.set_preset_mode
         target:
           entity_id: climate.climate_mensa
         data:
-          preset_mode: eco
+          preset_mode: comfort
   mode: single
 - id: boost_auto_revert
   alias: Boost Auto-Revert (→ comfort after 60 min or target reached)
