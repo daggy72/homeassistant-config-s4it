@@ -1186,3 +1186,93 @@
       sun_azimuth_max: 180
       sun_elevation_min: 8
       room_label: "CS"
+
+- id: weekend_shade_hold
+  alias: Sun Shade — Weekend Hold (summer down / winter up)
+  description: >
+    Non-workday shade override sitting on top of the per-room
+    intelligent_sun_shade blueprint (which is guarded to workdays only).
+    Summer + hot forecast -> all shades FULLY DOWN (0); winter -> all shades
+    FULLY UP (100). On workday mornings re-opens (100) so a weekend full-close
+    is cleared before the blueprint resumes.
+  mode: single
+  triggers:
+    - trigger: time
+      at: "06:00:00"
+      id: morning
+    - trigger: state
+      entity_id: binary_sensor.workday_sensor
+      id: workday_change
+    - trigger: state
+      entity_id: input_select.climate_season
+      id: season_change
+    - trigger: homeassistant
+      event: start
+      id: startup
+  conditions: []
+  actions:
+    - choose:
+        # Summer + weekend + hot -> fully down
+        - conditions:
+            - condition: state
+              entity_id: input_select.climate_season
+              state: summer
+            - condition: state
+              entity_id: binary_sensor.workday_sensor
+              state: "off"
+            - condition: numeric_state
+              entity_id: input_number.shade_today_outdoor_max_forecast
+              above: input_number.shade_forecast_max_threshold
+          sequence:
+            - action: cover.set_cover_position
+              target:
+                entity_id:
+                  - cover.shellypro2cover_34987a47c9b0_cover_0
+                  - cover.shellypro2cover_34987a47c9b0_cover_1
+                  - cover.shellypro2cover_2cbcbbb1ff9c_cover_0
+              data:
+                position: 0
+            - action: logbook.log
+              data:
+                name: "Weekend Sun Shade"
+                message: "Weekend hot summer day - all shades fully down (0)"
+        # Winter + weekend -> fully up
+        - conditions:
+            - condition: state
+              entity_id: input_select.climate_season
+              state: winter
+            - condition: state
+              entity_id: binary_sensor.workday_sensor
+              state: "off"
+          sequence:
+            - action: cover.set_cover_position
+              target:
+                entity_id:
+                  - cover.shellypro2cover_34987a47c9b0_cover_0
+                  - cover.shellypro2cover_34987a47c9b0_cover_1
+                  - cover.shellypro2cover_2cbcbbb1ff9c_cover_0
+              data:
+                position: 100
+            - action: logbook.log
+              data:
+                name: "Weekend Sun Shade"
+                message: "Weekend winter day - all shades fully up (100) for solar gain"
+        # Workday + summer, only on 06:00 or workday-flip -> re-open and hand back to blueprint
+        - conditions:
+            - condition: state
+              entity_id: input_select.climate_season
+              state: summer
+            - condition: state
+              entity_id: binary_sensor.workday_sensor
+              state: "on"
+            - condition: template
+              value_template: "{{ trigger.id in ['morning', 'workday_change'] }}"
+          sequence:
+            - action: cover.set_cover_position
+              target:
+                entity_id:
+                  - cover.shellypro2cover_34987a47c9b0_cover_0
+                  - cover.shellypro2cover_34987a47c9b0_cover_1
+                  - cover.shellypro2cover_2cbcbbb1ff9c_cover_0
+              data:
+                position: 100

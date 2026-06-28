@@ -200,6 +200,10 @@ conditions:
       - condition: state
         entity_id: input_select.climate_season
         state: winter
+  # Stand down on non-workdays — weekend_shade_hold owns the shades then.
+  - condition: state
+    entity_id: binary_sensor.workday_sensor
+    state: "on"
 
 actions:
   - choose:
