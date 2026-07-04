@@ -52,6 +52,21 @@ docker compose up -d
 - `homeassistant/config/.storage/` — HA runtime state
 - `homeassistant/data/`, `homeassistant/matter-data/`, `esphome/data/` — runtime data
 
+## Monitoring
+
+**No ad-hoc LLM polling loops.** Anomaly detection for this facility (chiller,
+VT wedges, fan/valve faults, preset drift) runs as native HA template binary
+sensors + state-change automations (`homeassistant/config/templates.yaml` /
+`automations.yaml`, ids prefixed `watchdog_*`), not as a Claude/Codex cron
+polling Home Assistant on an interval. See the DEV-DOMOTICA CLAUDE.md ground
+truth: "Monitoring belongs in HA automations/template sensors, NOT in LLM
+polling loops" — a prior 5-min LLM watchdog burned ~4.9M output tokens across
+~4,400 MCP polls (usage-audit-2026-07, finding F1) and silently missed
+coverage twice when the MCP server disconnected. State-change detection is
+free, always-on, and has no external dependency to fail. One short daily LLM
+review session (a "night-watch" pattern) is fine — a recurring interval poll
+is not.
+
 ## Documentation
 
 - [Mission & Vision](agent-os/product/mission.md)

@@ -1276,3 +1276,201 @@
                   - cover.shellypro2cover_2cbcbbb1ff9c_cover_0
               data:
                 position: 100
+
+# ---------------------------------------------------------------------------
+# Native watchdog automations (2026-07-04) — replaces the 5-min LLM polling
+# loop (usage-audit-2026-07 F1: ~4.9M output tokens, ~4,400 MCP polls, ~90%
+# no-op, silently missed coverage twice on MCP disconnect). Sensors defined
+# in templates.yaml under the `watchdog_*` unique_ids. See README.md
+# "Monitoring" section for the no-LLM-polling rule.
+#
+# NOTIFIER FLAG: this repo has no Telegram integration configured anywhere
+# (no `telegram_bot:` key in configuration.yaml, no secrets, nothing in any
+# tracked YAML) — grepped the whole repo, found nothing. The only existing
+# notify pattern in this config is `persistent_notification.create/dismiss`
+# (see `warehouse_cell_watchdog_monitor` above), so that's what these four
+# automations use for real, working notification. Once a `telegram_bot:` +
+# `notify:` platform is configured (bot token + chat_id in secrets.yaml),
+# swap the `persistent_notification.create` calls below for
+# `notify.telegram_bot` (or whatever notify.* entity_id it creates) — one
+# line per automation, same message/title variables.
+# ---------------------------------------------------------------------------
+- id: watchdog_frost_guard_sanity
+  alias: "Watchdog: Frost Guard Sanity"
+  description: >
+    Alerts if any zone's cool-mode target is near 0 °C (the 2026-05-23 0 °C
+    frost bug class — unconfigured cool-mode preset temps). Fast debounce (2
+    min): this symptom should never transiently appear under normal operation.
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.watchdog_frost_guard_sanity
+      to: "on"
+      for: "00:02:00"
+      id: alert
+    - trigger: state
+      entity_id: binary_sensor.watchdog_frost_guard_sanity
+      to: "off"
+      for: "00:05:00"
+      id: recovery
+  conditions: []
+  actions:
+    - choose:
+        - conditions:
+            - condition: trigger
+              id: [alert]
+          sequence:
+            - action: persistent_notification.create
+              data:
+                notification_id: watchdog_frost_guard_sanity
+                title: "Watchdog: frost-guard sanity FAILED"
+                message: >
+                  Zone(s) in cool mode with near-0°C target: {{ state_attr('binary_sensor.watchdog_frost_guard_sanity','affected_zones') }}.
+                  Likely an unconfigured cool-mode preset (0°C bug class). Check
+                  .storage/core.config_entries _ac_temp values for these zones.
+      default:
+        - action: persistent_notification.create
+          data:
+            notification_id: watchdog_frost_guard_sanity
+            title: "Watchdog: frost-guard sanity RECOVERED"
+            message: "No zones with a near-0°C cool target as of {{ now().strftime('%H:%M') }}."
+        - delay: "00:00:05"
+        - action: persistent_notification.dismiss
+          data:
+            notification_id: watchdog_frost_guard_sanity
+  mode: single
+
+- id: watchdog_fans_off_while_demand
+  alias: "Watchdog: Fans/Valve Off While Demand"
+  description: >
+    Alerts if a zone's fans (ESP32) or 0-10V valve output (analog) sit at 0
+    while VT still demands cooling — the "switch_1 follow" contradiction
+    class (T16 SPOF). Debounce 12 min: long enough to clear the VT cycle_min
+    5-7 min turnover, short enough to still catch it during the same visit.
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.watchdog_fans_off_while_demand
+      to: "on"
+      for: "00:12:00"
+      id: alert
+    - trigger: state
+      entity_id: binary_sensor.watchdog_fans_off_while_demand
+      to: "off"
+      for: "00:05:00"
+      id: recovery
+  conditions: []
+  actions:
+    - choose:
+        - conditions:
+            - condition: trigger
+              id: [alert]
+          sequence:
+            - action: persistent_notification.create
+              data:
+                notification_id: watchdog_fans_off_while_demand
+                title: "Watchdog: fans/valve killed while demanding cooling"
+                message: >
+                  A zone has been demanding cooling for 12+ min with its
+                  fans/valve at 0. Check the zone's Shelly (offline or
+                  externally switched off) and its `in_mode` config.
+      default:
+        - action: persistent_notification.create
+          data:
+            notification_id: watchdog_fans_off_while_demand
+            title: "Watchdog: fans/valve RECOVERED"
+            message: "All zones' fans/valve now match demand as of {{ now().strftime('%H:%M') }}."
+        - delay: "00:00:05"
+        - action: persistent_notification.dismiss
+          data:
+            notification_id: watchdog_fans_off_while_demand
+  mode: single
+
+- id: watchdog_chiller_no_effect
+  alias: "Watchdog: Chiller No Cooling Effect"
+  description: >
+    Alerts if the chiller has run well past pre-charge + min-cycle (25 min)
+    with 2+ zones still pegged >=95% demand — suggests a VT/valve wedge, not
+    just a hot day. Debounce 15 min on top of the sensor's own 25-min gate
+    (belt-and-suspenders against a single evaluation blip).
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.watchdog_chiller_no_effect
+      to: "on"
+      for: "00:15:00"
+      id: alert
+    - trigger: state
+      entity_id: binary_sensor.watchdog_chiller_no_effect
+      to: "off"
+      for: "00:05:00"
+      id: recovery
+  conditions: []
+  actions:
+    - choose:
+        - conditions:
+            - condition: trigger
+              id: [alert]
+          sequence:
+            - action: persistent_notification.create
+              data:
+                notification_id: watchdog_chiller_no_effect
+                title: "Watchdog: chiller running with no cooling effect"
+                message: >
+                  Chiller has been on 25+ min with {{ state_attr('binary_sensor.watchdog_chiller_no_effect','pegged_zone_count') }}
+                  zone(s) pegged at >=95% demand. Check for a VT wedge (MCP/assist
+                  writes to a wedged VT silently no-op) or a stuck valve.
+      default:
+        - action: persistent_notification.create
+          data:
+            notification_id: watchdog_chiller_no_effect
+            title: "Watchdog: chiller cooling RECOVERED"
+            message: "Demand has relieved below the pegged threshold as of {{ now().strftime('%H:%M') }}."
+        - delay: "00:00:05"
+        - action: persistent_notification.dismiss
+          data:
+            notification_id: watchdog_chiller_no_effect
+  mode: single
+
+- id: watchdog_stale_preset_drift
+  alias: "Watchdog: Stale Preset Drift"
+  description: >
+    Alerts if a comfort-default zone is still parked in its overnight boil
+    preset (`none`) after 08:15 on a summer workday — the schedule should
+    have transitioned it to comfort by then. Debounce 10 min for command
+    latency / the schedule's own preheat slack.
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.watchdog_stale_preset_drift
+      to: "on"
+      for: "00:10:00"
+      id: alert
+    - trigger: state
+      entity_id: binary_sensor.watchdog_stale_preset_drift
+      to: "off"
+      for: "00:05:00"
+      id: recovery
+  conditions: []
+  actions:
+    - choose:
+        - conditions:
+            - condition: trigger
+              id: [alert]
+          sequence:
+            - action: persistent_notification.create
+              data:
+                notification_id: watchdog_stale_preset_drift
+                title: "Watchdog: stale preset drift"
+                message: >
+                  Zone(s) still parked in boil (`none`) after 08:15 on a
+                  workday: {{ state_attr('binary_sensor.watchdog_stale_preset_drift','affected_zones') }}.
+                  Check whether office_climate_schedule fired and whether the
+                  VT accepted it (wedge risk).
+      default:
+        - action: persistent_notification.create
+          data:
+            notification_id: watchdog_stale_preset_drift
+            title: "Watchdog: stale preset drift RECOVERED"
+            message: "No comfort-default zones stuck in boil as of {{ now().strftime('%H:%M') }}."
+        - delay: "00:00:05"
+        - action: persistent_notification.dismiss
+          data:
+            notification_id: watchdog_stale_preset_drift
+  mode: single

@@ -803,3 +803,170 @@
       device_class: temperature
       state_class: measurement
       icon: mdi:weather-sunny-alert
+
+# ---------------------------------------------------------------------------
+# Native watchdog sensors (2026-07-04) — replaces the 5-min LLM polling loop.
+# See README.md "Monitoring" section + CLAUDE.md ground truth: monitoring
+# belongs in HA automations/template sensors, not LLM polling loops.
+# Paired automations (Telegram/notify on trigger + recovery) live in
+# automations.yaml under the `watchdog_*` ids.
+# ---------------------------------------------------------------------------
+- binary_sensor:
+    # Class 1 — frost-guard sanity (the 0 °C bug class, see climate-0c-frost-bug
+    # memory): any zone in cool mode with a near-zero target temp means its
+    # cool-mode preset temps are unconfigured and VT fell back to 0 °C.
+    - name: "Watchdog Frost Guard Sanity"
+      unique_id: watchdog_frost_guard_sanity
+      device_class: problem
+      icon: mdi:snowflake-alert
+      state: >
+        {% set zones = ['climate.fancoil_dagmar','climate.fancoil_tania','climate.projects_1',
+          'climate.fancoil_cs','climate.fancoil_reception','climate.fancoil_meeting',
+          'climate.fancoil_openspace','climate.fancoil_entrance','climate.climate_mensa',
+          'climate.projects_2'] %}
+        {% set ns = namespace(bad=[]) %}
+        {% for z in zones %}
+          {% set t = state_attr(z, 'temperature') %}
+          {% if states(z) == 'cool' and t is not none and t | float(99) < 5 %}
+            {% set ns.bad = ns.bad + [z] %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.bad | length > 0 }}
+      attributes:
+        affected_zones: >
+          {% set zones = ['climate.fancoil_dagmar','climate.fancoil_tania','climate.projects_1',
+            'climate.fancoil_cs','climate.fancoil_reception','climate.fancoil_meeting',
+            'climate.fancoil_openspace','climate.fancoil_entrance','climate.climate_mensa',
+            'climate.projects_2'] %}
+          {% set ns = namespace(bad=[]) %}
+          {% for z in zones %}
+            {% set t = state_attr(z, 'temperature') %}
+            {% if states(z) == 'cool' and t is not none and t | float(99) < 5 %}
+              {% set ns.bad = ns.bad + [z] %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.bad | join(', ') }}
+
+    # Class 2 — fans/valve killed while the zone still demands cooling (the
+    # "switch_1 follow" contradiction class, see climate-control-2026-06 memory
+    # T16 SPOF note). ESP32 zones: both fans off while VT demand > 10%. Analog
+    # 0-10V zones: the maintain-band template (above in this file) floors
+    # output at 15% whenever comfort/eco is actively cooling, so a reading of
+    # exactly 0 while comfort/eco+cool means the Shelly output was killed
+    # externally or the device is offline — either way, worth a look.
+    - name: "Watchdog Fans Off While Demand"
+      unique_id: watchdog_fans_off_while_demand
+      device_class: problem
+      icon: mdi:fan-alert
+      state: >
+        {% set esp32 = [
+          {'clim': 'climate.fancoil_openspace', 'demand': 'sensor.fancoil_openspace_demand', 'fans': ['fan.fancoilcontroller_01_fancoil','fan.fancoil_02_fancoil']},
+          {'clim': 'climate.fancoil_entrance',  'demand': 'sensor.fancoil_entrance_demand',  'fans': ['fan.fancoil_03_fancoil']},
+          {'clim': 'climate.fancoil_reception', 'demand': 'sensor.fancoil_reception_demand', 'fans': ['fan.fancoil_04_fancoil']},
+          {'clim': 'climate.fancoil_meeting',   'demand': 'sensor.fancoil_meeting_demand',   'fans': ['fan.fancoil_05_fancoil','fan.fancoil_06_fancoil']},
+          {'clim': 'climate.fancoil_cs',        'demand': 'sensor.fancoil_cs_demand',        'fans': ['fan.fancoil_07_fancoil','fan.fancoil_08_fancoil']},
+          {'clim': 'climate.fancoil_tania',     'demand': 'sensor.fancoil_tania_demand',     'fans': ['fan.fancoil_09_fancoil','fan.fancoil_10_fancoil']},
+        ] %}
+        {% set analog = [
+          {'clim': 'climate.climate_mensa',  'valve': 'number.fancoil_mensa_1'},
+          {'clim': 'climate.fancoil_dagmar', 'valve': 'number.fancoil_dagmar'},
+          {'clim': 'climate.projects_1',     'valve': 'number.fancoil_projects_1'},
+          {'clim': 'climate.projects_2',     'valve': 'number.fancoil_projects_2'},
+        ] %}
+        {% set ns = namespace(bad=[]) %}
+        {% for z in esp32 %}
+          {% if states(z.clim) == 'cool' and (states(z.demand) | float(0)) > 10
+                and (z.fans | map('states') | select('eq','off') | list | length) == (z.fans | length) %}
+            {% set ns.bad = ns.bad + [z.clim] %}
+          {% endif %}
+        {% endfor %}
+        {% for z in analog %}
+          {% if states(z.clim) == 'cool' and state_attr(z.clim,'preset_mode') in ['comfort','eco']
+                and (states(z.valve) | float(-1)) == 0 %}
+            {% set ns.bad = ns.bad + [z.clim] %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.bad | length > 0 }}
+
+    # Class 3 — chiller running with sustained near-max demand and no relief
+    # (VT wedge / valve stuck class). Deliberately avoids history/trend
+    # sensors (harder to simulate blind via dev-tools overrides per the
+    # handoff's simulate-first constraint): instead treats "at least 2 zones
+    # pegged >=95% demand while the chiller has run well past pre-charge +
+    # min-cycle (25 min, see climate-chiller-rules memory)" as the anomaly —
+    # real cooling should relieve demand well before 25 min on all but the
+    # hottest days.
+    - name: "Watchdog Chiller No Cooling Effect"
+      unique_id: watchdog_chiller_no_effect
+      device_class: problem
+      icon: mdi:snowflake-off
+      state: >
+        {% set zones_demand = ['sensor.fancoil_openspace_demand','sensor.fancoil_entrance_demand',
+          'sensor.fancoil_reception_demand','sensor.fancoil_meeting_demand',
+          'sensor.fancoil_cs_demand','sensor.fancoil_tania_demand'] %}
+        {% set analog_valves = ['number.fancoil_mensa_1','number.fancoil_dagmar',
+          'number.fancoil_projects_1','number.fancoil_projects_2'] %}
+        {% set chiller = 'switch.shellypro4pm_ece334eaf568_switch_2' %}
+        {% set chiller_on = is_state(chiller, 'on') %}
+        {% set chiller_on_secs = (now() - states[chiller].last_changed).total_seconds() if chiller_on else 0 %}
+        {% set pegged = (zones_demand | map('states') | map('float',0) | select('ge',95) | list | length)
+                      + (analog_valves | map('states') | map('float',0) | select('ge',95) | list | length) %}
+        {{ chiller_on and chiller_on_secs > 1500 and pegged >= 2 }}
+      attributes:
+        pegged_zone_count: >
+          {% set zones_demand = ['sensor.fancoil_openspace_demand','sensor.fancoil_entrance_demand',
+            'sensor.fancoil_reception_demand','sensor.fancoil_meeting_demand',
+            'sensor.fancoil_cs_demand','sensor.fancoil_tania_demand'] %}
+          {% set analog_valves = ['number.fancoil_mensa_1','number.fancoil_dagmar',
+            'number.fancoil_projects_1','number.fancoil_projects_2'] %}
+          {{ (zones_demand | map('states') | map('float',0) | select('ge',95) | list | length)
+           + (analog_valves | map('states') | map('float',0) | select('ge',95) | list | length) }}
+
+    # Class 4 — stale-preset drift. Substitute for the runtime `number.*_ac_temp`
+    # comparison suggested in the ground-truth memory: those VT-internal
+    # entities are NOT referenced anywhere in this repo's tracked YAML (they
+    # live only in .storage/core.config_entries, created dynamically by the
+    # VT integration) so their exact entity_ids can't be confirmed from config
+    # alone — flagged, not guessed. This narrower check instead catches the
+    # concrete, low-noise failure it's meant to protect against: a
+    # comfort-default zone still parked in its overnight boil preset (`none`)
+    # well after the 08:00 schedule should have transitioned it to comfort.
+    # NEEDS VERIFICATION against live HA before relying on it for the
+    # original ask (preset *value* drift, not just mode).
+    - name: "Watchdog Stale Preset Drift"
+      unique_id: watchdog_stale_preset_drift
+      device_class: problem
+      icon: mdi:clock-alert-outline
+      state: >
+        {% set comfort_zones = ['climate.fancoil_dagmar','climate.fancoil_tania','climate.projects_1',
+          'climate.fancoil_reception','climate.fancoil_cs','climate.fancoil_openspace',
+          'climate.fancoil_entrance','climate.climate_mensa'] %}
+        {% set in_window = is_state('input_select.climate_season','summer')
+             and is_state('binary_sensor.workday_sensor','on')
+             and today_at('08:15:00') <= now() < today_at('17:00:00') %}
+        {% set ns = namespace(bad=[]) %}
+        {% if in_window %}
+          {% for z in comfort_zones %}
+            {% if state_attr(z,'preset_mode') == 'none' %}
+              {% set ns.bad = ns.bad + [z] %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {{ ns.bad | length > 0 }}
+      attributes:
+        affected_zones: >
+          {% set comfort_zones = ['climate.fancoil_dagmar','climate.fancoil_tania','climate.projects_1',
+            'climate.fancoil_reception','climate.fancoil_cs','climate.fancoil_openspace',
+            'climate.fancoil_entrance','climate.climate_mensa'] %}
+          {% set in_window = is_state('input_select.climate_season','summer')
+               and is_state('binary_sensor.workday_sensor','on')
+               and today_at('08:15:00') <= now() < today_at('17:00:00') %}
+          {% set ns = namespace(bad=[]) %}
+          {% if in_window %}
+            {% for z in comfort_zones %}
+              {% if state_attr(z,'preset_mode') == 'none' %}
+                {% set ns.bad = ns.bad + [z] %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {{ ns.bad | join(', ') }}
