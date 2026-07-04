@@ -16,16 +16,18 @@
           0
         {% endif %}
       set_value:
-        # MAINTAIN BAND (2026-06-22): while cooling in comfort/eco, hold the
-        # analog valve in a quiet band: floor 15% (never 0 = no cycling),
-        # ceiling 70% (cools warm rooms; below the 100% scream) — never 0 (annoying on/off cycling),
-        # never 100 (noise). boost/boil/off pass through. Over-cool-safe because
-        # the chiller is demand-driven (idles when satisfied → 15% just moves air).
+        # MAINTAIN BAND (2026-06-22, ceiling made time-aware 2026-06-25): while
+        # cooling in comfort/eco, hold the analog valve in a quiet band: floor 15%
+        # (never 0 = no cycling). Ceiling is 70% during the occupied day (08:00-18:00,
+        # below the 100% scream) but 100% outside it — so the 06:00 heatwave pre-cool
+        # (comfort/eco) can run flat-out before staff arrive. boost/boil/off always
+        # pass through (100% ok). Over-cool-safe: the chiller is demand-driven.
         - variables:
             out: >
               {% set v = value | int %}
+              {% set hi = 70 if today_at('08:00') <= now() < today_at('18:00') else 100 %}
               {% if is_state('climate.climate_mensa','cool') and state_attr('climate.climate_mensa','preset_mode') in ['comfort','eco'] %}
-                {{ [[v, 15] | max, 70] | min if v > 0 else 15 }}
+                {{ [[v, 15] | max, hi] | min if v > 0 else 15 }}
               {% else %}
                 {{ v }}
               {% endif %}
@@ -60,8 +62,9 @@
         - variables:
             out: >
               {% set v = value | int %}
+              {% set hi = 70 if today_at('08:00') <= now() < today_at('18:00') else 100 %}
               {% if is_state('climate.projects_1','cool') and state_attr('climate.projects_1','preset_mode') in ['comfort','eco'] %}
-                {{ [[v, 15] | max, 70] | min if v > 0 else 15 }}
+                {{ [[v, 15] | max, hi] | min if v > 0 else 15 }}
               {% else %}
                 {{ v }}
               {% endif %}
@@ -96,8 +99,9 @@
         - variables:
             out: >
               {% set v = value | int %}
+              {% set hi = 70 if today_at('08:00') <= now() < today_at('18:00') else 100 %}
               {% if is_state('climate.projects_2','cool') and state_attr('climate.projects_2','preset_mode') in ['comfort','eco'] %}
-                {{ [[v, 15] | max, 70] | min if v > 0 else 15 }}
+                {{ [[v, 15] | max, hi] | min if v > 0 else 15 }}
               {% else %}
                 {{ v }}
               {% endif %}
@@ -140,8 +144,9 @@
         - variables:
             out: >
               {% set v = value | int %}
+              {% set hi = 70 if today_at('08:00') <= now() < today_at('18:00') else 100 %}
               {% if is_state('climate.fancoil_dagmar','cool') and state_attr('climate.fancoil_dagmar','preset_mode') in ['comfort','eco'] %}
-                {{ [[v, 15] | max, 70] | min if v > 0 else 15 }}
+                {{ [[v, 15] | max, hi] | min if v > 0 else 15 }}
               {% else %}
                 {{ v }}
               {% endif %}

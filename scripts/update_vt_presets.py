@@ -29,6 +29,11 @@ in cool mode (VT cools the room down to this target if exceeded):
         boost_ac_temp   = 25.0
         frost_ac_temp   = 31.0   (boil)
 
+NOTE (2026-06-25): the EFFECTIVE live presets are VT's runtime number entities
+(number.<zone>_preset_*_ac_temp), adjusted via the device UI — NOT this config
+entry `data`. This script only rewrites the stale `data` baseline (applied on a
+fresh entry setup/reset). For live tuning, set the number entities / VT UI.
+
 Motion override DISABLED 2026-06-20 (use_motion_feature=False on Meeting/CS/
 Reception) — superseded by the deterministic schedule + manual-override model.
 
