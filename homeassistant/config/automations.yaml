@@ -1284,16 +1284,8 @@
 # in templates.yaml under the `watchdog_*` unique_ids. See README.md
 # "Monitoring" section for the no-LLM-polling rule.
 #
-# NOTIFIER FLAG: this repo has no Telegram integration configured anywhere
-# (no `telegram_bot:` key in configuration.yaml, no secrets, nothing in any
-# tracked YAML) — grepped the whole repo, found nothing. The only existing
-# notify pattern in this config is `persistent_notification.create/dismiss`
-# (see `warehouse_cell_watchdog_monitor` above), so that's what these four
-# automations use for real, working notification. Once a `telegram_bot:` +
-# `notify:` platform is configured (bot token + chat_id in secrets.yaml),
-# swap the `persistent_notification.create` calls below for
-# `notify.telegram_bot` (or whatever notify.* entity_id it creates) — one
-# line per automation, same message/title variables.
+# NOTIFY: persistent_notification (in-HA) + notify.telegram_watchdog (phone,
+# 2026-07-05 — telegram_bot: + notify: platform added in configuration.yaml).
 # ---------------------------------------------------------------------------
 - id: watchdog_frost_guard_sanity
   alias: "Watchdog: Frost Guard Sanity"
@@ -1327,10 +1319,21 @@
                   Zone(s) in cool mode with near-0°C target: {{ state_attr('binary_sensor.watchdog_frost_guard_sanity','affected_zones') }}.
                   Likely an unconfigured cool-mode preset (0°C bug class). Check
                   .storage/core.config_entries _ac_temp values for these zones.
+            - action: notify.telegram_watchdog
+              data:
+                title: "Watchdog: frost-guard sanity FAILED"
+                message: >
+                  Zone(s) in cool mode with near-0°C target: {{ state_attr('binary_sensor.watchdog_frost_guard_sanity','affected_zones') }}.
+                  Likely an unconfigured cool-mode preset (0°C bug class). Check
+                  .storage/core.config_entries _ac_temp values for these zones.
       default:
         - action: persistent_notification.create
           data:
             notification_id: watchdog_frost_guard_sanity
+            title: "Watchdog: frost-guard sanity RECOVERED"
+            message: "No zones with a near-0°C cool target as of {{ now().strftime('%H:%M') }}."
+        - action: notify.telegram_watchdog
+          data:
             title: "Watchdog: frost-guard sanity RECOVERED"
             message: "No zones with a near-0°C cool target as of {{ now().strftime('%H:%M') }}."
         - delay: "00:00:05"
@@ -1372,10 +1375,21 @@
                   A zone has been demanding cooling for 12+ min with its
                   fans/valve at 0. Check the zone's Shelly (offline or
                   externally switched off) and its `in_mode` config.
+            - action: notify.telegram_watchdog
+              data:
+                title: "Watchdog: fans/valve killed while demanding cooling"
+                message: >
+                  A zone has been demanding cooling for 12+ min with its
+                  fans/valve at 0. Check the zone's Shelly (offline or
+                  externally switched off) and its `in_mode` config.
       default:
         - action: persistent_notification.create
           data:
             notification_id: watchdog_fans_off_while_demand
+            title: "Watchdog: fans/valve RECOVERED"
+            message: "All zones' fans/valve now match demand as of {{ now().strftime('%H:%M') }}."
+        - action: notify.telegram_watchdog
+          data:
             title: "Watchdog: fans/valve RECOVERED"
             message: "All zones' fans/valve now match demand as of {{ now().strftime('%H:%M') }}."
         - delay: "00:00:05"
@@ -1417,10 +1431,21 @@
                   Chiller has been on 25+ min with {{ state_attr('binary_sensor.watchdog_chiller_no_cooling_effect','pegged_zone_count') }}
                   zone(s) pegged at >=95% demand. Check for a VT wedge (MCP/assist
                   writes to a wedged VT silently no-op) or a stuck valve.
+            - action: notify.telegram_watchdog
+              data:
+                title: "Watchdog: chiller running with no cooling effect"
+                message: >
+                  Chiller has been on 25+ min with {{ state_attr('binary_sensor.watchdog_chiller_no_cooling_effect','pegged_zone_count') }}
+                  zone(s) pegged at >=95% demand. Check for a VT wedge (MCP/assist
+                  writes to a wedged VT silently no-op) or a stuck valve.
       default:
         - action: persistent_notification.create
           data:
             notification_id: watchdog_chiller_no_effect
+            title: "Watchdog: chiller cooling RECOVERED"
+            message: "Demand has relieved below the pegged threshold as of {{ now().strftime('%H:%M') }}."
+        - action: notify.telegram_watchdog
+          data:
             title: "Watchdog: chiller cooling RECOVERED"
             message: "Demand has relieved below the pegged threshold as of {{ now().strftime('%H:%M') }}."
         - delay: "00:00:05"
@@ -1463,10 +1488,22 @@
                   workday: {{ state_attr('binary_sensor.watchdog_stale_preset_drift','affected_zones') }}.
                   Check whether office_climate_schedule fired and whether the
                   VT accepted it (wedge risk).
+            - action: notify.telegram_watchdog
+              data:
+                title: "Watchdog: stale preset drift"
+                message: >
+                  Zone(s) still parked in boil (`none`) after 08:15 on a
+                  workday: {{ state_attr('binary_sensor.watchdog_stale_preset_drift','affected_zones') }}.
+                  Check whether office_climate_schedule fired and whether the
+                  VT accepted it (wedge risk).
       default:
         - action: persistent_notification.create
           data:
             notification_id: watchdog_stale_preset_drift
+            title: "Watchdog: stale preset drift RECOVERED"
+            message: "No comfort-default zones stuck in boil as of {{ now().strftime('%H:%M') }}."
+        - action: notify.telegram_watchdog
+          data:
             title: "Watchdog: stale preset drift RECOVERED"
             message: "No comfort-default zones stuck in boil as of {{ now().strftime('%H:%M') }}."
         - delay: "00:00:05"
