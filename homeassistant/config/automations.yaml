@@ -1393,12 +1393,12 @@
     (belt-and-suspenders against a single evaluation blip).
   triggers:
     - trigger: state
-      entity_id: binary_sensor.watchdog_chiller_no_effect
+      entity_id: binary_sensor.watchdog_chiller_no_cooling_effect
       to: "on"
       for: "00:15:00"
       id: alert
     - trigger: state
-      entity_id: binary_sensor.watchdog_chiller_no_effect
+      entity_id: binary_sensor.watchdog_chiller_no_cooling_effect
       to: "off"
       for: "00:05:00"
       id: recovery
@@ -1414,7 +1414,7 @@
                 notification_id: watchdog_chiller_no_effect
                 title: "Watchdog: chiller running with no cooling effect"
                 message: >
-                  Chiller has been on 25+ min with {{ state_attr('binary_sensor.watchdog_chiller_no_effect','pegged_zone_count') }}
+                  Chiller has been on 25+ min with {{ state_attr('binary_sensor.watchdog_chiller_no_cooling_effect','pegged_zone_count') }}
                   zone(s) pegged at >=95% demand. Check for a VT wedge (MCP/assist
                   writes to a wedged VT silently no-op) or a stuck valve.
       default:
