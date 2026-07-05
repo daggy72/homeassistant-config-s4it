@@ -922,17 +922,21 @@
           {{ (zones_demand | map('states') | map('float',0) | select('ge',95) | list | length)
            + (analog_valves | map('states') | map('float',0) | select('ge',95) | list | length) }}
 
-    # Class 4 — stale-preset drift. Substitute for the runtime `number.*_ac_temp`
-    # comparison suggested in the ground-truth memory: those VT-internal
-    # entities are NOT referenced anywhere in this repo's tracked YAML (they
-    # live only in .storage/core.config_entries, created dynamically by the
-    # VT integration) so their exact entity_ids can't be confirmed from config
-    # alone — flagged, not guessed. This narrower check instead catches the
-    # concrete, low-noise failure it's meant to protect against: a
-    # comfort-default zone still parked in its overnight boil preset (`none`)
-    # well after the 08:00 schedule should have transitioned it to comfort.
-    # NEEDS VERIFICATION against live HA before relying on it for the
-    # original ask (preset *value* drift, not just mode).
+    # Class 4 — stale-preset drift. Two independent checks feed one flag:
+    #   (a) mode drift — a comfort-default zone still parked in its overnight
+    #       boil preset (`none`) well after the 08:00 schedule should have
+    #       transitioned it to comfort (original narrower check, workday
+    #       summer 08:15-17:00 only).
+    #   (b) value drift (2026-07-05, confirmed against live HA) — a zone's
+    #       live cool-mode target no longer matches what its active preset
+    #       says it should be. Runtime source-of-truth is
+    #       number.<zone>_preset_<preset>_ac_temp, but the entity registry
+    #       shows that's `unavailable` for every zone except Mensa — VT falls
+    #       back to number.central_configuration_preset_<preset>_ac_temp when
+    #       no per-zone override is set, so this check does the same
+    #       fallback. Applies whenever a zone is in cool mode with an active
+    #       preset (comfort/eco/boost) — no time window, since drift can
+    #       happen any time.
     - name: "Watchdog Stale Preset Drift"
       unique_id: watchdog_stale_preset_drift
       device_class: problem
@@ -941,6 +945,7 @@
         {% set comfort_zones = ['climate.fancoil_dagmar','climate.fancoil_tania','climate.projects_1',
           'climate.fancoil_reception','climate.fancoil_cs','climate.fancoil_openspace',
           'climate.fancoil_entrance','climate.climate_mensa'] %}
+        {% set value_zones = comfort_zones + ['climate.fancoil_meeting'] %}
         {% set in_window = is_state('input_select.climate_season','summer')
              and is_state('binary_sensor.workday_sensor','on')
              and today_at('08:15:00') <= now() < today_at('17:00:00') %}
@@ -952,12 +957,27 @@
             {% endif %}
           {% endfor %}
         {% endif %}
-        {{ ns.bad | length > 0 }}
+        {% for z in value_zones %}
+          {% set preset = state_attr(z,'preset_mode') %}
+          {% if states(z) == 'cool' and preset in ['comfort','eco','boost'] %}
+            {% set expected = states(z | replace('climate.','number.') ~ '_preset_' ~ preset ~ '_ac_temp') %}
+            {% if expected in ['unknown','unavailable'] %}
+              {% set expected = states('number.central_configuration_preset_' ~ preset ~ '_ac_temp') %}
+            {% endif %}
+            {% set target = state_attr(z,'temperature') %}
+            {% if expected not in ['unknown','unavailable'] and target is not none
+                  and ((target | float(0)) - (expected | float(0))) | abs >= 0.5 %}
+              {% set ns.bad = ns.bad + [z] %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.bad | unique | list | length > 0 }}
       attributes:
         affected_zones: >
           {% set comfort_zones = ['climate.fancoil_dagmar','climate.fancoil_tania','climate.projects_1',
             'climate.fancoil_reception','climate.fancoil_cs','climate.fancoil_openspace',
             'climate.fancoil_entrance','climate.climate_mensa'] %}
+          {% set value_zones = comfort_zones + ['climate.fancoil_meeting'] %}
           {% set in_window = is_state('input_select.climate_season','summer')
                and is_state('binary_sensor.workday_sensor','on')
                and today_at('08:15:00') <= now() < today_at('17:00:00') %}
@@ -969,4 +989,18 @@
               {% endif %}
             {% endfor %}
           {% endif %}
-          {{ ns.bad | join(', ') }}
+          {% for z in value_zones %}
+            {% set preset = state_attr(z,'preset_mode') %}
+            {% if states(z) == 'cool' and preset in ['comfort','eco','boost'] %}
+              {% set expected = states(z | replace('climate.','number.') ~ '_preset_' ~ preset ~ '_ac_temp') %}
+              {% if expected in ['unknown','unavailable'] %}
+                {% set expected = states('number.central_configuration_preset_' ~ preset ~ '_ac_temp') %}
+              {% endif %}
+              {% set target = state_attr(z,'temperature') %}
+              {% if expected not in ['unknown','unavailable'] and target is not none
+                    and ((target | float(0)) - (expected | float(0))) | abs >= 0.5 %}
+                {% set ns.bad = ns.bad + [z] %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.bad | unique | join(', ') }}
