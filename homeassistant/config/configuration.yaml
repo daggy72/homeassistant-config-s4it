@@ -72,16 +72,6 @@ counter: !include counters.yaml
 sensor: !include sensors.yaml
 
 # --- Telegram (watchdog phone alerts, see automations.yaml watchdog_* ids) ---
-# Requires telegram_bot_token + telegram_chat_id in secrets.yaml (added
-# directly on the NAS, never committed) before this deploys — check_config
-# fails on an undefined !secret.
-telegram_bot:
-  - platform: polling
-    api_key: !secret telegram_bot_token
-    allowed_chat_ids:
-      - !secret telegram_chat_id
-
-notify:
-  - name: telegram_watchdog
-    platform: telegram
-    chat_id: !secret telegram_chat_id
+# HA 2026.7.1: telegram_bot no longer supports YAML setup (config-entry/UI
+# only — Settings > Devices & Services > Add Integration > Telegram Bot).
+# No YAML block here; see hosting.md for the setup + entity-id lookup steps.
