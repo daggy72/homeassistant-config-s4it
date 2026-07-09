@@ -6,3 +6,22 @@ warehouse_cell_watchdog_enabled:
   name: "Warehouse Cell — Watchdog Enabled"
   icon: mdi:shield-check
   initial: true
+
+# Tracks whether each watchdog automation actually sent an alert, so the
+# recovery branch only notifies if there was something to recover from —
+# without this, a sensor that blips on for a couple seconds (never reaching
+# its own "for:" alert threshold) still fires a spurious RECOVERED message
+# every time it clears its 5-min recovery debounce (2026-07-09 notification
+# spam: ~1 unpaired "fans/valve RECOVERED" every 15 min).
+watchdog_frost_guard_sanity_alerting:
+  name: "Watchdog Frost Guard Sanity — Alerting"
+  icon: mdi:bell-ring
+watchdog_fans_off_while_demand_alerting:
+  name: "Watchdog Fans Off While Demand — Alerting"
+  icon: mdi:bell-ring
+watchdog_chiller_no_effect_alerting:
+  name: "Watchdog Chiller No Cooling Effect — Alerting"
+  icon: mdi:bell-ring
+watchdog_stale_preset_drift_alerting:
+  name: "Watchdog Stale Preset Drift — Alerting"
+  icon: mdi:bell-ring

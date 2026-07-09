@@ -1330,22 +1330,34 @@
                   Zone(s) in cool mode with near-0°C target: {{ state_attr('binary_sensor.watchdog_frost_guard_sanity','affected_zones') }}.
                   Likely an unconfigured cool-mode preset (0°C bug class). Check
                   .storage/core.config_entries _ac_temp values for these zones.
-      default:
-        - action: persistent_notification.create
-          data:
-            notification_id: watchdog_frost_guard_sanity
-            title: "Watchdog: frost-guard sanity RECOVERED"
-            message: "No zones with a near-0°C cool target as of {{ now().strftime('%H:%M') }}."
-        - action: notify.send_message
-          target:
-            entity_id: notify.s4it_homeassistant_dagmar
-          data:
-            title: "Watchdog: frost-guard sanity RECOVERED"
-            message: "No zones with a near-0°C cool target as of {{ now().strftime('%H:%M') }}."
-        - delay: "00:00:05"
-        - action: persistent_notification.dismiss
-          data:
-            notification_id: watchdog_frost_guard_sanity
+            - action: input_boolean.turn_on
+              target:
+                entity_id: input_boolean.watchdog_frost_guard_sanity_alerting
+        - conditions:
+            - condition: trigger
+              id: [recovery]
+            - condition: state
+              entity_id: input_boolean.watchdog_frost_guard_sanity_alerting
+              state: "on"
+          sequence:
+            - action: persistent_notification.create
+              data:
+                notification_id: watchdog_frost_guard_sanity
+                title: "Watchdog: frost-guard sanity RECOVERED"
+                message: "No zones with a near-0°C cool target as of {{ now().strftime('%H:%M') }}."
+            - action: notify.send_message
+              target:
+                entity_id: notify.s4it_homeassistant_dagmar
+              data:
+                title: "Watchdog: frost-guard sanity RECOVERED"
+                message: "No zones with a near-0°C cool target as of {{ now().strftime('%H:%M') }}."
+            - delay: "00:00:05"
+            - action: persistent_notification.dismiss
+              data:
+                notification_id: watchdog_frost_guard_sanity
+            - action: input_boolean.turn_off
+              target:
+                entity_id: input_boolean.watchdog_frost_guard_sanity_alerting
   mode: single
 
 - id: watchdog_fans_off_while_demand
@@ -1390,22 +1402,34 @@
                   A zone has been demanding cooling for 12+ min with its
                   fans/valve at 0. Check the zone's Shelly (offline or
                   externally switched off) and its `in_mode` config.
-      default:
-        - action: persistent_notification.create
-          data:
-            notification_id: watchdog_fans_off_while_demand
-            title: "Watchdog: fans/valve RECOVERED"
-            message: "All zones' fans/valve now match demand as of {{ now().strftime('%H:%M') }}."
-        - action: notify.send_message
-          target:
-            entity_id: notify.s4it_homeassistant_dagmar
-          data:
-            title: "Watchdog: fans/valve RECOVERED"
-            message: "All zones' fans/valve now match demand as of {{ now().strftime('%H:%M') }}."
-        - delay: "00:00:05"
-        - action: persistent_notification.dismiss
-          data:
-            notification_id: watchdog_fans_off_while_demand
+            - action: input_boolean.turn_on
+              target:
+                entity_id: input_boolean.watchdog_fans_off_while_demand_alerting
+        - conditions:
+            - condition: trigger
+              id: [recovery]
+            - condition: state
+              entity_id: input_boolean.watchdog_fans_off_while_demand_alerting
+              state: "on"
+          sequence:
+            - action: persistent_notification.create
+              data:
+                notification_id: watchdog_fans_off_while_demand
+                title: "Watchdog: fans/valve RECOVERED"
+                message: "All zones' fans/valve now match demand as of {{ now().strftime('%H:%M') }}."
+            - action: notify.send_message
+              target:
+                entity_id: notify.s4it_homeassistant_dagmar
+              data:
+                title: "Watchdog: fans/valve RECOVERED"
+                message: "All zones' fans/valve now match demand as of {{ now().strftime('%H:%M') }}."
+            - delay: "00:00:05"
+            - action: persistent_notification.dismiss
+              data:
+                notification_id: watchdog_fans_off_while_demand
+            - action: input_boolean.turn_off
+              target:
+                entity_id: input_boolean.watchdog_fans_off_while_demand_alerting
   mode: single
 
 - id: watchdog_chiller_no_effect
@@ -1450,22 +1474,34 @@
                   Chiller has been on 25+ min with {{ state_attr('binary_sensor.watchdog_chiller_no_cooling_effect','pegged_zone_count') }}
                   zone(s) pegged at >=95% demand. Check for a VT wedge (MCP/assist
                   writes to a wedged VT silently no-op) or a stuck valve.
-      default:
-        - action: persistent_notification.create
-          data:
-            notification_id: watchdog_chiller_no_effect
-            title: "Watchdog: chiller cooling RECOVERED"
-            message: "Demand has relieved below the pegged threshold as of {{ now().strftime('%H:%M') }}."
-        - action: notify.send_message
-          target:
-            entity_id: notify.s4it_homeassistant_dagmar
-          data:
-            title: "Watchdog: chiller cooling RECOVERED"
-            message: "Demand has relieved below the pegged threshold as of {{ now().strftime('%H:%M') }}."
-        - delay: "00:00:05"
-        - action: persistent_notification.dismiss
-          data:
-            notification_id: watchdog_chiller_no_effect
+            - action: input_boolean.turn_on
+              target:
+                entity_id: input_boolean.watchdog_chiller_no_effect_alerting
+        - conditions:
+            - condition: trigger
+              id: [recovery]
+            - condition: state
+              entity_id: input_boolean.watchdog_chiller_no_effect_alerting
+              state: "on"
+          sequence:
+            - action: persistent_notification.create
+              data:
+                notification_id: watchdog_chiller_no_effect
+                title: "Watchdog: chiller cooling RECOVERED"
+                message: "Demand has relieved below the pegged threshold as of {{ now().strftime('%H:%M') }}."
+            - action: notify.send_message
+              target:
+                entity_id: notify.s4it_homeassistant_dagmar
+              data:
+                title: "Watchdog: chiller cooling RECOVERED"
+                message: "Demand has relieved below the pegged threshold as of {{ now().strftime('%H:%M') }}."
+            - delay: "00:00:05"
+            - action: persistent_notification.dismiss
+              data:
+                notification_id: watchdog_chiller_no_effect
+            - action: input_boolean.turn_off
+              target:
+                entity_id: input_boolean.watchdog_chiller_no_effect_alerting
   mode: single
 
 - id: watchdog_stale_preset_drift
@@ -1512,20 +1548,32 @@
                   workday: {{ state_attr('binary_sensor.watchdog_stale_preset_drift','affected_zones') }}.
                   Check whether office_climate_schedule fired and whether the
                   VT accepted it (wedge risk).
-      default:
-        - action: persistent_notification.create
-          data:
-            notification_id: watchdog_stale_preset_drift
-            title: "Watchdog: stale preset drift RECOVERED"
-            message: "No comfort-default zones stuck in boil as of {{ now().strftime('%H:%M') }}."
-        - action: notify.send_message
-          target:
-            entity_id: notify.s4it_homeassistant_dagmar
-          data:
-            title: "Watchdog: stale preset drift RECOVERED"
-            message: "No comfort-default zones stuck in boil as of {{ now().strftime('%H:%M') }}."
-        - delay: "00:00:05"
-        - action: persistent_notification.dismiss
-          data:
-            notification_id: watchdog_stale_preset_drift
+            - action: input_boolean.turn_on
+              target:
+                entity_id: input_boolean.watchdog_stale_preset_drift_alerting
+        - conditions:
+            - condition: trigger
+              id: [recovery]
+            - condition: state
+              entity_id: input_boolean.watchdog_stale_preset_drift_alerting
+              state: "on"
+          sequence:
+            - action: persistent_notification.create
+              data:
+                notification_id: watchdog_stale_preset_drift
+                title: "Watchdog: stale preset drift RECOVERED"
+                message: "No comfort-default zones stuck in boil as of {{ now().strftime('%H:%M') }}."
+            - action: notify.send_message
+              target:
+                entity_id: notify.s4it_homeassistant_dagmar
+              data:
+                title: "Watchdog: stale preset drift RECOVERED"
+                message: "No comfort-default zones stuck in boil as of {{ now().strftime('%H:%M') }}."
+            - delay: "00:00:05"
+            - action: persistent_notification.dismiss
+              data:
+                notification_id: watchdog_stale_preset_drift
+            - action: input_boolean.turn_off
+              target:
+                entity_id: input_boolean.watchdog_stale_preset_drift_alerting
   mode: single
