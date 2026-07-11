@@ -1004,3 +1004,17 @@
             {% endif %}
           {% endfor %}
           {{ ns.bad | unique | join(', ') }}
+
+# ---------------------------------------------------------------------------
+# Heat-wave detection (2026-07-11, docs/heatwave-chiller-fan-boost-plan.md,
+# approved) — feeds chiller_idle_off_no_demand (suppresses idle-off) and
+# heatwave_fan_boost (forces OpenSpace/Entrance to 100%) in automations.yaml.
+# ---------------------------------------------------------------------------
+- binary_sensor:
+    - name: "Heatwave Active"
+      unique_id: heatwave_active
+      device_class: heat
+      icon: mdi:weather-sunny-alert
+      state: >
+        {{ (states('sensor.outdoor_temp_24h_avg') | float(0))
+           >= (states('input_number.chiller_heatwave_threshold') | float(99)) }}

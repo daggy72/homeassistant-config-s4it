@@ -59,3 +59,14 @@
   time_window: "00:30:00"
   unit_time: h
   round: 2
+
+# Heat-wave detection (see docs/heatwave-chiller-fan-boost-plan.md, approved
+# 2026-07-11) — rolling 24h mean outdoor temp, feeds binary_sensor.heatwave_active
+# in templates.yaml.
+- platform: statistics
+  entity_id: sensor.outdoor_temperature
+  name: "Outdoor Temp 24h Average"
+  unique_id: outdoor_temp_24h_avg
+  state_characteristic: mean
+  max_age:
+    hours: 24

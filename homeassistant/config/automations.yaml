@@ -453,6 +453,11 @@
   - condition: template
     value_template: >
       {{ (now() - states.switch.shellypro4pm_ece334eaf568_switch_2.last_changed).total_seconds() >= 600 }}
+  - condition: not
+    conditions:
+      - condition: state
+        entity_id: binary_sensor.heatwave_active
+        state: 'on'
   actions:
   - action: switch.turn_off
     target:
@@ -1576,4 +1581,49 @@
             - action: input_boolean.turn_off
               target:
                 entity_id: input_boolean.watchdog_stale_preset_drift_alerting
+  mode: single
+
+- id: heatwave_fan_boost
+  alias: "Heat-wave Fan Boost — OpenSpace & Entrance"
+  description: >
+    Forces OpenSpace's two fans and Entrance's fan to 100% whenever their
+    zone is in cool mode during a detected heat wave (24h avg outdoor temp
+    >= chiller_heatwave_threshold) — these two zones struggle to hold
+    target on the hottest days even with normal demand-based modulation.
+    Reasserted every 2 min in case anything else tries to throttle them
+    back down. See docs/heatwave-chiller-fan-boost-plan.md (approved
+    2026-07-11).
+  triggers:
+    - trigger: time_pattern
+      minutes: "/2"
+    - trigger: state
+      entity_id: binary_sensor.heatwave_active
+      to: "on"
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.heatwave_active
+      state: "on"
+  actions:
+    - if:
+        - condition: state
+          entity_id: climate.fancoil_openspace
+          state: "cool"
+      then:
+        - action: fan.set_percentage
+          target:
+            entity_id:
+              - fan.fancoilcontroller_01_fancoil
+              - fan.fancoil_02_fancoil
+          data:
+            percentage: 100
+    - if:
+        - condition: state
+          entity_id: climate.fancoil_entrance
+          state: "cool"
+      then:
+        - action: fan.set_percentage
+          target:
+            entity_id: fan.fancoil_03_fancoil
+          data:
+            percentage: 100
   mode: single

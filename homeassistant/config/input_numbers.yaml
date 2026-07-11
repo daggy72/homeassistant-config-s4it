@@ -154,3 +154,13 @@ warehouse_cell_max_temperature:
   step: 0.1
   unit_of_measurement: "°C"
   mode: box
+
+chiller_heatwave_threshold:
+  name: "Chiller — Heat-wave Threshold (24h avg)"
+  icon: mdi:thermometer-alert
+  initial: 26.0
+  min: 22
+  max: 32
+  step: 0.5
+  unit_of_measurement: "°C"
+  mode: box
