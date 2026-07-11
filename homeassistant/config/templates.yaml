@@ -1016,5 +1016,5 @@
       device_class: heat
       icon: mdi:weather-sunny-alert
       state: >
-        {{ (states('sensor.outdoor_temp_24h_avg') | float(0))
+        {{ (states('sensor.outdoor_temp_24h_average') | float(0))
            >= (states('input_number.chiller_heatwave_threshold') | float(99)) }}
