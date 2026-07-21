@@ -1627,3 +1627,79 @@
           data:
             percentage: 100
   mode: single
+
+- id: watchdog_devices_unavailable
+  alias: "Watchdog: Devices Unavailable"
+  description: >
+    Alerts if any switch/fan entity is unavailable (power or network
+    outage — e.g. the 2026-07-21 thunderstorm that dropped several smart
+    switches with no alert). Sensor defined in templates.yaml under
+    watchdog_devices_unavailable, excludes known-chronically-unavailable
+    unrelated entities. Debounce 5 min: connectivity blips shorter than
+    that shouldn't page; a real outage will still be well past 5 min.
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.watchdog_devices_unavailable
+      to: "on"
+      for: "00:05:00"
+      id: alert
+    - trigger: state
+      entity_id: binary_sensor.watchdog_devices_unavailable
+      to: "off"
+      for: "00:05:00"
+      id: recovery
+  conditions: []
+  actions:
+    - choose:
+        - conditions:
+            - condition: trigger
+              id: [alert]
+          sequence:
+            - action: persistent_notification.create
+              data:
+                notification_id: watchdog_devices_unavailable
+                title: "Watchdog: device(s) unavailable"
+                message: >
+                  Unavailable for 5+ min: {{ state_attr('binary_sensor.watchdog_devices_unavailable','affected_devices') }}.
+                  Everything else is fine. Likely a power or network drop —
+                  check the device(s) and, if Shelly, whether it needs a
+                  power cycle.
+            - action: notify.send_message
+              target:
+                entity_id: notify.s4it_homeassistant_dagmar
+              data:
+                title: "Watchdog: device(s) unavailable"
+                message: >
+                  Unavailable for 5+ min: {{ state_attr('binary_sensor.watchdog_devices_unavailable','affected_devices') }}.
+                  Everything else is fine. Likely a power or network drop —
+                  check the device(s) and, if Shelly, whether it needs a
+                  power cycle.
+            - action: input_boolean.turn_on
+              target:
+                entity_id: input_boolean.watchdog_devices_unavailable_alerting
+        - conditions:
+            - condition: trigger
+              id: [recovery]
+            - condition: state
+              entity_id: input_boolean.watchdog_devices_unavailable_alerting
+              state: "on"
+          sequence:
+            - action: persistent_notification.create
+              data:
+                notification_id: watchdog_devices_unavailable
+                title: "Watchdog: devices RECOVERED"
+                message: "All previously-flagged devices back online as of {{ now().strftime('%H:%M') }}."
+            - action: notify.send_message
+              target:
+                entity_id: notify.s4it_homeassistant_dagmar
+              data:
+                title: "Watchdog: devices RECOVERED"
+                message: "All previously-flagged devices back online as of {{ now().strftime('%H:%M') }}."
+            - delay: "00:00:05"
+            - action: persistent_notification.dismiss
+              data:
+                notification_id: watchdog_devices_unavailable
+            - action: input_boolean.turn_off
+              target:
+                entity_id: input_boolean.watchdog_devices_unavailable_alerting
+  mode: single

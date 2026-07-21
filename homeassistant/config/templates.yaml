@@ -1018,3 +1018,58 @@
       state: >
         {{ (states('sensor.outdoor_temp_24h_average') | float(0))
            >= (states('input_number.chiller_heatwave_threshold') | float(99)) }}
+
+# ---------------------------------------------------------------------------
+# Devices Unavailable (2026-07-21) — catches power/network outages (e.g. the
+# 2026-07-21 thunderstorm that dropped several smart switches) that the other
+# watchdogs can't see, since they all assume their underlying entities exist.
+# Scans every switch.* and fan.* entity (fancoils like OpenSpace left/right,
+# Tania Wall, etc. + the 3 Shelly group switches that power them: Fancoils
+# CS, Fancoils OS & Meeting, Fancoils Tania) and flags any unavailable,
+# excluding entities/prefixes that are chronically unavailable in normal
+# operation (unrelated integrations: ai_dome camera sub-switches, robot
+# vacuum feature toggles, etc. — not real outages). Extend the exclude
+# list if a new device turns out to be permanently flaky.
+# ---------------------------------------------------------------------------
+- binary_sensor:
+    - name: "Watchdog Devices Unavailable"
+      unique_id: watchdog_devices_unavailable
+      device_class: problem
+      icon: mdi:power-plug-off
+      state: >
+        {% set exclude_exact = [
+          'fan.fancoil_dagmar_outlet',
+          'switch.shellywalldisplay_proj1',
+          'switch.smart_plug_mini_3',
+          'switch.smart_switch_25010986516751513702c4e7ae1293a2_config_overtemp_enable',
+          'switch.wallbox_sx_pulsar_max_sn_1381212_pause_resume',
+        ] %}
+        {% set ns = namespace(bad=[]) %}
+        {% for s in (states.switch | list) + (states.fan | list) %}
+          {% if s.state in ['unavailable', 'unknown']
+                and s.entity_id not in exclude_exact
+                and not s.entity_id.startswith('switch.ai_dome_')
+                and not s.entity_id.startswith('switch.p50_pro_ultra_') %}
+            {% set ns.bad = ns.bad + [s.entity_id] %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.bad | length > 0 }}
+      attributes:
+        affected_devices: >
+          {% set exclude_exact = [
+            'fan.fancoil_dagmar_outlet',
+            'switch.shellywalldisplay_proj1',
+            'switch.smart_plug_mini_3',
+            'switch.smart_switch_25010986516751513702c4e7ae1293a2_config_overtemp_enable',
+            'switch.wallbox_sx_pulsar_max_sn_1381212_pause_resume',
+          ] %}
+          {% set ns = namespace(bad=[]) %}
+          {% for s in (states.switch | list) + (states.fan | list) %}
+            {% if s.state in ['unavailable', 'unknown']
+                  and s.entity_id not in exclude_exact
+                  and not s.entity_id.startswith('switch.ai_dome_')
+                  and not s.entity_id.startswith('switch.p50_pro_ultra_') %}
+              {% set ns.bad = ns.bad + [s.name] %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.bad | join(', ') }}

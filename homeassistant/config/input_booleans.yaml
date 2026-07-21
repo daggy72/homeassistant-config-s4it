@@ -25,3 +25,6 @@ watchdog_chiller_no_effect_alerting:
 watchdog_stale_preset_drift_alerting:
   name: "Watchdog Stale Preset Drift — Alerting"
   icon: mdi:bell-ring
+watchdog_devices_unavailable_alerting:
+  name: "Watchdog Devices Unavailable — Alerting"
+  icon: mdi:bell-ring
