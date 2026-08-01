@@ -8,78 +8,18 @@ views:
     icon: mdi:thermostat
     cards:
 
-      # --- Season Selector ---
-      - type: horizontal-stack
-        cards:
-          - type: button
-            name: Winter
-            icon: mdi:snowflake-thermometer
-            icon_height: 40px
-            tap_action:
-              action: call-service
-              service: input_select.select_option
-              service_data:
-                option: winter
-              target:
-                entity_id: input_select.climate_season
-            show_state: false
-          - type: button
-            name: "Off"
-            icon: mdi:power-standby
-            icon_height: 40px
-            tap_action:
-              action: call-service
-              service: input_select.select_option
-              service_data:
-                option: "off"
-              target:
-                entity_id: input_select.climate_season
-            show_state: false
-          - type: button
-            name: Summer
-            icon: mdi:sun-thermometer
-            icon_height: 40px
-            tap_action:
-              action: call-service
-              service: input_select.select_option
-              service_data:
-                option: summer
-              target:
-                entity_id: input_select.climate_season
-            show_state: false
-
-      # --- System Status ---
+      # --- System Status (read-only; Season + Chiller moved to Admin view) ---
       - type: entities
         title: System
         entities:
-          - entity: input_select.climate_season
-            name: Active Season
-          - entity: switch.shellypro4pm_ece334eaf568_switch_2
-            name: Chiller
           - entity: sensor.outdoor_temperature
             name: Outdoor Temperature
 
-      # --- Warehouse Cell ---
+      # --- Warehouse Cell (PEGO) — monitoring only; limits/watchdog settings moved to Admin view ---
       - type: entities
         title: Warehouse Cell
         state_color: true
         entities:
-          - type: section
-            label: Limits
-          - entity: input_number.warehouse_cell_min_temperature
-            name: Minimum
-          - entity: input_number.warehouse_cell_max_temperature
-            name: Maximum
-          - entity: input_boolean.warehouse_cell_manual_hold
-            name: Manual hold
-          - type: section
-            label: Watchdog
-          - entity: input_boolean.warehouse_cell_watchdog_enabled
-            name: Enabled
-          - entity: input_datetime.warehouse_cell_watchdog_until
-            name: Active until
-          - entity: input_text.warehouse_cell_watchdog_last_status
-            name: Last status
           - type: section
             label: Temperature
           - entity: sensor.wh1_temperature
@@ -92,8 +32,6 @@ views:
             label: Profile
           - entity: sensor.wh1_last_applied_profile
             name: Last applied profile
-          - entity: input_text.warehouse_cell_last_requested_command
-            name: Last requested command
           - entity: sensor.wh1_last_profile_write
             name: Last profile write
           - entity: sensor.wh1_last_profile_error
@@ -257,3 +195,91 @@ views:
               name: Office Eco Target
             - entity: sensor.summer_eco_common
               name: Common Eco Target
+
+  # =============================================================================
+  # Admin — Season override + Chiller. Restricted: an accidental tap here stops
+  # heat/cool for the whole building (2026-07-29: Roberta hit "Off" and every
+  # VT + the chiller stopped until manually switched back on).
+  # =============================================================================
+  - title: Climate — Admin
+    path: climate-admin
+    icon: mdi:shield-lock
+    visible:
+      - user: 7366d89540354749b99668d6c285f270  # Dagmar -local admin- Sporck
+      - user: 68599956f906423390a62bc47a34bfaa  # Dagmar Sporck
+    cards:
+
+      # --- Season Selector ---
+      - type: horizontal-stack
+        cards:
+          - type: button
+            name: Winter
+            icon: mdi:snowflake-thermometer
+            icon_height: 40px
+            tap_action:
+              action: call-service
+              service: input_select.select_option
+              service_data:
+                option: winter
+              target:
+                entity_id: input_select.climate_season
+            show_state: false
+          - type: button
+            name: "Off"
+            icon: mdi:power-standby
+            icon_height: 40px
+            tap_action:
+              action: call-service
+              service: input_select.select_option
+              service_data:
+                option: "off"
+              target:
+                entity_id: input_select.climate_season
+            show_state: false
+          - type: button
+            name: Summer
+            icon: mdi:sun-thermometer
+            icon_height: 40px
+            tap_action:
+              action: call-service
+              service: input_select.select_option
+              service_data:
+                option: summer
+              target:
+                entity_id: input_select.climate_season
+            show_state: false
+
+      # --- System Status ---
+      - type: entities
+        title: System
+        entities:
+          - entity: input_select.climate_season
+            name: Active Season
+          - entity: switch.shellypro4pm_ece334eaf568_switch_2
+            name: Chiller
+          - entity: sensor.outdoor_temperature
+            name: Outdoor Temperature
+
+      # --- Warehouse Cell (PEGO) — settings only; monitoring stays on the public view ---
+      - type: entities
+        title: Warehouse Cell Settings
+        state_color: true
+        entities:
+          - type: section
+            label: Limits
+          - entity: input_number.warehouse_cell_min_temperature
+            name: Minimum
+          - entity: input_number.warehouse_cell_max_temperature
+            name: Maximum
+          - entity: input_boolean.warehouse_cell_manual_hold
+            name: Manual hold
+          - type: section
+            label: Watchdog
+          - entity: input_boolean.warehouse_cell_watchdog_enabled
+            name: Enabled
+          - entity: input_datetime.warehouse_cell_watchdog_until
+            name: Active until
+          - entity: input_text.warehouse_cell_watchdog_last_status
+            name: Last status
+          - entity: input_text.warehouse_cell_last_requested_command
+            name: Last requested command
