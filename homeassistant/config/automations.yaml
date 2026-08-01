@@ -1584,21 +1584,20 @@
   mode: single
 
 - id: heatwave_fan_boost
-  alias: "Heat-wave Fan Boost — OpenSpace"
+  alias: "Heat-wave Fan Boost — OpenSpace & Entrance"
   description: >
-    Forces OpenSpace's two fans to 100% whenever the zone is in cool mode
-    during a detected heat wave (24h avg outdoor temp >= chiller_heatwave_threshold)
-    — this zone struggles to hold target on the hottest days even with
-    normal demand-based modulation. Reasserted every 2 min in case anything
-    else tries to throttle it back down. See docs/heatwave-chiller-fan-boost-plan.md
-    (approved 2026-07-11).
+    Forces OpenSpace's two fans and Entrance's fan to 100% whenever their
+    zone is in cool mode during a detected heat wave (24h avg outdoor temp
+    >= chiller_heatwave_threshold) — these two zones struggle to hold
+    target on the hottest days even with normal demand-based modulation.
+    Reasserted every 2 min in case anything else tries to throttle them
+    back down. See docs/heatwave-chiller-fan-boost-plan.md (approved
+    2026-07-11).
 
-    2026-08-01: Entrance moved off this forced-100% override onto the
-    general 16%-floor-day-and-night behavior (templates.yaml valve numbers)
-    that now applies to every other zone — only OpenSpace stays pinned at
-    100%. Same floor is also asserted inline in fancoil_openspace_valve's
-    set_value (templates.yaml), so this automation is now belt-and-suspenders
-    rather than the only path to 100%.
+    2026-08-01: every other zone also floors at 16% (any preset, day and
+    night) via the valve template numbers in templates.yaml — OpenSpace and
+    Entrance are the two exceptions pinned at 100% instead, asserted both
+    here and inline in their own set_value (belt-and-suspenders).
   triggers:
     - trigger: time_pattern
       minutes: "/2"
@@ -1620,6 +1619,16 @@
             entity_id:
               - fan.fancoilcontroller_01_fancoil
               - fan.fancoil_02_fancoil
+          data:
+            percentage: 100
+    - if:
+        - condition: state
+          entity_id: climate.fancoil_entrance
+          state: "cool"
+      then:
+        - action: fan.set_percentage
+          target:
+            entity_id: fan.fancoil_03_fancoil
           data:
             percentage: 100
   mode: single

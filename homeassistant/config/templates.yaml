@@ -599,15 +599,16 @@
           {{ state_attr('fan.fancoil_03_fancoil', 'percentage') | int(0) }}
         {% endif %}
       set_value:
-        # HEATWAVE FLOOR (2026-08-01) — see Fancoil Tania note. 16%, any
-        # preset, day and night, while binary_sensor.heatwave_active is on.
-        # Entrance moved from a forced-100% override (automation.heatwave_fan_boost)
-        # to this general floor — only OpenSpace stays at 100%.
+        # HEATWAVE FLOOR (2026-08-01, revised same day): Entrance runs at
+        # 100% — same as OpenSpace — while binary_sensor.heatwave_active is
+        # on, any preset, day and night. Also asserted by
+        # automation.heatwave_fan_boost as belt-and-suspenders (same pattern
+        # as OpenSpace).
         - variables:
             v: >
               {% set raw = value | int %}
               {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.fancoil_entrance','cool') %}
-                {{ [raw, 16] | max }}
+                {{ [raw, 100] | max }}
               {% else %}
                 {{ raw }}
               {% endif %}
