@@ -22,11 +22,16 @@
         # below the 100% scream) but 100% outside it — so the 06:00 heatwave pre-cool
         # (comfort/eco) can run flat-out before staff arrive. boost/boil/off always
         # pass through (100% ok). Over-cool-safe: the chiller is demand-driven.
+        # HEATWAVE FLOOR (2026-08-01): while binary_sensor.heatwave_active is on,
+        # floor at 16% uncapped, any preset, day AND night — supersedes the
+        # comfort/eco-only band above for the duration of the heat wave.
         - variables:
             out: >
               {% set v = value | int %}
               {% set hi = 70 if today_at('08:00') <= now() < today_at('18:00') else 100 %}
-              {% if is_state('climate.climate_mensa','cool') and state_attr('climate.climate_mensa','preset_mode') in ['comfort','eco'] %}
+              {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.climate_mensa','cool') %}
+                {{ [v, 16] | max }}
+              {% elif is_state('climate.climate_mensa','cool') and state_attr('climate.climate_mensa','preset_mode') in ['comfort','eco'] %}
                 {{ [[v, 15] | max, hi] | min if v > 0 else 15 }}
               {% else %}
                 {{ v }}
@@ -59,11 +64,15 @@
         {% endif %}
       set_value:
         # MAINTAIN BAND — see Fancoil Mensa note. Hold 15-30% in comfort/eco.
+        # HEATWAVE FLOOR (2026-08-01) — see Fancoil Mensa note. 16%, any preset,
+        # day and night, while binary_sensor.heatwave_active is on.
         - variables:
             out: >
               {% set v = value | int %}
               {% set hi = 70 if today_at('08:00') <= now() < today_at('18:00') else 100 %}
-              {% if is_state('climate.projects_1','cool') and state_attr('climate.projects_1','preset_mode') in ['comfort','eco'] %}
+              {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.projects_1','cool') %}
+                {{ [v, 16] | max }}
+              {% elif is_state('climate.projects_1','cool') and state_attr('climate.projects_1','preset_mode') in ['comfort','eco'] %}
                 {{ [[v, 15] | max, hi] | min if v > 0 else 15 }}
               {% else %}
                 {{ v }}
@@ -96,11 +105,15 @@
         {% endif %}
       set_value:
         # MAINTAIN BAND — see Fancoil Mensa note. Hold 15-30% in comfort/eco.
+        # HEATWAVE FLOOR (2026-08-01) — see Fancoil Mensa note. 16%, any preset,
+        # day and night, while binary_sensor.heatwave_active is on.
         - variables:
             out: >
               {% set v = value | int %}
               {% set hi = 70 if today_at('08:00') <= now() < today_at('18:00') else 100 %}
-              {% if is_state('climate.projects_2','cool') and state_attr('climate.projects_2','preset_mode') in ['comfort','eco'] %}
+              {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.projects_2','cool') %}
+                {{ [v, 16] | max }}
+              {% elif is_state('climate.projects_2','cool') and state_attr('climate.projects_2','preset_mode') in ['comfort','eco'] %}
                 {{ [[v, 15] | max, hi] | min if v > 0 else 15 }}
               {% else %}
                 {{ v }}
@@ -141,11 +154,15 @@
         {% endif %}
       set_value:
         # MAINTAIN BAND — see Fancoil Mensa note. Hold 15-30% in comfort/eco.
+        # HEATWAVE FLOOR (2026-08-01) — see Fancoil Mensa note. 16%, any preset,
+        # day and night, while binary_sensor.heatwave_active is on.
         - variables:
             out: >
               {% set v = value | int %}
               {% set hi = 70 if today_at('08:00') <= now() < today_at('18:00') else 100 %}
-              {% if is_state('climate.fancoil_dagmar','cool') and state_attr('climate.fancoil_dagmar','preset_mode') in ['comfort','eco'] %}
+              {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.fancoil_dagmar','cool') %}
+                {{ [v, 16] | max }}
+              {% elif is_state('climate.fancoil_dagmar','cool') and state_attr('climate.fancoil_dagmar','preset_mode') in ['comfort','eco'] %}
                 {{ [[v, 15] | max, hi] | min if v > 0 else 15 }}
               {% else %}
                 {{ v }}
@@ -177,14 +194,24 @@
         {% if is_state('fan.fancoil_10_fancoil', 'off') %}{% set b = 0 %}{% endif %}
         {{ ((a + b) / 2) | round(0) }}
       set_value:
+        # HEATWAVE FLOOR (2026-08-01): while binary_sensor.heatwave_active is
+        # on and this zone is cooling, floor the incoming demand at 16% (any
+        # preset, day and night) before deriving the 6-speed cascade step.
         - variables:
+            v: >
+              {% set raw = value | int %}
+              {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.fancoil_tania','cool') %}
+                {{ [raw, 16] | max }}
+              {% else %}
+                {{ raw }}
+              {% endif %}
             step: >
-              {% if value | int <= 0 %}0
-              {% elif value | int <= 17 %}1
-              {% elif value | int <= 33 %}2
-              {% elif value | int <= 50 %}3
-              {% elif value | int <= 67 %}4
-              {% elif value | int <= 83 %}5
+              {% if v | int <= 0 %}0
+              {% elif v | int <= 17 %}1
+              {% elif v | int <= 33 %}2
+              {% elif v | int <= 50 %}3
+              {% elif v | int <= 67 %}4
+              {% elif v | int <= 83 %}5
               {% else %}6
               {% endif %}
             spd_a: "{{ [0, 33, 33, 66, 66, 100, 100][step | int] }}"
@@ -254,14 +281,23 @@
         {% if is_state('fan.fancoil_07_fancoil', 'off') %}{% set b = 0 %}{% endif %}
         {{ ((a + b) / 2) | round(0) }}
       set_value:
+        # HEATWAVE FLOOR (2026-08-01) — see Fancoil Tania note. 16%, any
+        # preset, day and night, while binary_sensor.heatwave_active is on.
         - variables:
+            v: >
+              {% set raw = value | int %}
+              {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.fancoil_cs','cool') %}
+                {{ [raw, 16] | max }}
+              {% else %}
+                {{ raw }}
+              {% endif %}
             step: >
-              {% if value | int <= 0 %}0
-              {% elif value | int <= 17 %}1
-              {% elif value | int <= 33 %}2
-              {% elif value | int <= 50 %}3
-              {% elif value | int <= 67 %}4
-              {% elif value | int <= 83 %}5
+              {% if v | int <= 0 %}0
+              {% elif v | int <= 17 %}1
+              {% elif v | int <= 33 %}2
+              {% elif v | int <= 50 %}3
+              {% elif v | int <= 67 %}4
+              {% elif v | int <= 83 %}5
               {% else %}6
               {% endif %}
             spd_a: "{{ [0, 33, 33, 66, 66, 100, 100][step | int] }}"
@@ -330,14 +366,23 @@
         {% if is_state('fan.fancoil_06_fancoil', 'off') %}{% set b = 0 %}{% endif %}
         {{ ((a + b) / 2) | round(0) }}
       set_value:
+        # HEATWAVE FLOOR (2026-08-01) — see Fancoil Tania note. 16%, any
+        # preset, day and night, while binary_sensor.heatwave_active is on.
         - variables:
+            v: >
+              {% set raw = value | int %}
+              {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.fancoil_meeting','cool') %}
+                {{ [raw, 16] | max }}
+              {% else %}
+                {{ raw }}
+              {% endif %}
             step: >
-              {% if value | int <= 0 %}0
-              {% elif value | int <= 17 %}1
-              {% elif value | int <= 33 %}2
-              {% elif value | int <= 50 %}3
-              {% elif value | int <= 67 %}4
-              {% elif value | int <= 83 %}5
+              {% if v | int <= 0 %}0
+              {% elif v | int <= 17 %}1
+              {% elif v | int <= 33 %}2
+              {% elif v | int <= 50 %}3
+              {% elif v | int <= 67 %}4
+              {% elif v | int <= 83 %}5
               {% else %}6
               {% endif %}
             spd_a: "{{ [0, 33, 33, 66, 66, 100, 100][step | int] }}"
@@ -406,14 +451,27 @@
         {% if is_state('fan.fancoil_02_fancoil', 'off') %}{% set b = 0 %}{% endif %}
         {{ ((a + b) / 2) | round(0) }}
       set_value:
+        # HEATWAVE FLOOR (2026-08-01): OpenSpace runs at 100% (not just the
+        # general 16% floor) while binary_sensor.heatwave_active is on — any
+        # preset, day and night. See docs/heatwave-chiller-fan-boost-plan.md;
+        # this is the same 100% assertion as automation.heatwave_fan_boost,
+        # just also applied inline so it holds even between that automation's
+        # 2-minute reassertions.
         - variables:
+            v: >
+              {% set raw = value | int %}
+              {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.fancoil_openspace','cool') %}
+                {{ [raw, 100] | max }}
+              {% else %}
+                {{ raw }}
+              {% endif %}
             step: >
-              {% if value | int <= 0 %}0
-              {% elif value | int <= 17 %}1
-              {% elif value | int <= 33 %}2
-              {% elif value | int <= 50 %}3
-              {% elif value | int <= 67 %}4
-              {% elif value | int <= 83 %}5
+              {% if v | int <= 0 %}0
+              {% elif v | int <= 17 %}1
+              {% elif v | int <= 33 %}2
+              {% elif v | int <= 50 %}3
+              {% elif v | int <= 67 %}4
+              {% elif v | int <= 83 %}5
               {% else %}6
               {% endif %}
             spd_a: "{{ [0, 33, 33, 66, 66, 100, 100][step | int] }}"
@@ -485,11 +543,20 @@
         # Wider low-speed band for Reception (poor insulation, single fan).
         # Low speed handles most steady-state heating. Medium/high only
         # for large gaps (cold morning preheat).
+        # HEATWAVE FLOOR (2026-08-01) — see Fancoil Tania note. 16%, any
+        # preset, day and night, while binary_sensor.heatwave_active is on.
         - variables:
+            v: >
+              {% set raw = value | int %}
+              {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.fancoil_reception','cool') %}
+                {{ [raw, 16] | max }}
+              {% else %}
+                {{ raw }}
+              {% endif %}
             spd: >
-              {% if value | int <= 0 %}0
-              {% elif value | int <= 50 %}33
-              {% elif value | int <= 80 %}66
+              {% if v | int <= 0 %}0
+              {% elif v | int <= 50 %}33
+              {% elif v | int <= 80 %}66
               {% else %}100
               {% endif %}
         - if:
@@ -532,11 +599,22 @@
           {{ state_attr('fan.fancoil_03_fancoil', 'percentage') | int(0) }}
         {% endif %}
       set_value:
+        # HEATWAVE FLOOR (2026-08-01) — see Fancoil Tania note. 16%, any
+        # preset, day and night, while binary_sensor.heatwave_active is on.
+        # Entrance moved from a forced-100% override (automation.heatwave_fan_boost)
+        # to this general floor — only OpenSpace stays at 100%.
         - variables:
+            v: >
+              {% set raw = value | int %}
+              {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.fancoil_entrance','cool') %}
+                {{ [raw, 16] | max }}
+              {% else %}
+                {{ raw }}
+              {% endif %}
             spd: >
-              {% if value | int <= 0 %}0
-              {% elif value | int <= 33 %}33
-              {% elif value | int <= 67 %}66
+              {% if v | int <= 0 %}0
+              {% elif v | int <= 33 %}33
+              {% elif v | int <= 67 %}66
               {% else %}100
               {% endif %}
         - if:
