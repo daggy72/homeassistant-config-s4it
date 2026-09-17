@@ -69,8 +69,9 @@ is not.
 
 ## Documentation
 
-- [Mission & Vision](agent-os/product/mission.md)
-- [Tech Stack](agent-os/product/tech-stack.md)
-- [Roadmap](agent-os/product/roadmap.md)
-- [Architecture Decisions](agent-os/product/decisions.md)
+- [Mission & Vision](docs/product/mission.md)
+- [Tech Stack](docs/product/tech-stack.md)
+- [Roadmap](docs/product/roadmap.md)
+- [Architecture Decisions](docs/product/decisions.md)
 - [Climate Telemetry Stack](docs/climate/telemetry.md)
+- AgentOS (`agent-os/`) was removed 2026-09-17; find it in git history with `git log --all -- agent-os`.
