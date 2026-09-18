@@ -19,9 +19,7 @@ This project extends:
 s4it-automation/
 ├── .claude/
 │   └── CLAUDE.md                    # This file
-├── agent-os/
-│   ├── product/                     # Vision, tech stack, roadmap, decisions
-│   └── standards/                   # Discovered patterns
+├── docs/product/                    # Vision, tech stack, roadmap, decisions
 ├── homeassistant/
 │   ├── config/                      # HA YAML configuration
 │   │   ├── configuration.yaml       # Main config (includes, helpers, dashboards)
