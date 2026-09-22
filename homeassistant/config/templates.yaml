@@ -197,13 +197,15 @@
         # HEATWAVE FLOOR (2026-08-01): while binary_sensor.heatwave_active is
         # on and this zone is cooling, floor the incoming demand at 16% (any
         # preset, day and night) before deriving the 6-speed cascade step.
+        # DAY CAP (2026-09-22): max 66% per fan 08:00-18:00 (Dagmar), 100% outside.
         - variables:
             v: >
               {% set raw = value | int %}
+              {% set hi = 67 if today_at('08:00') <= now() < today_at('18:00') else 100 %}
               {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.fancoil_tania','cool') %}
-                {{ [raw, 16] | max }}
+                {{ [[raw, 16] | max, hi] | min }}
               {% else %}
-                {{ raw }}
+                {{ [raw, hi] | min }}
               {% endif %}
             step: >
               {% if v | int <= 0 %}0
@@ -283,13 +285,15 @@
       set_value:
         # HEATWAVE FLOOR (2026-08-01) — see Fancoil Tania note. 16%, any
         # preset, day and night, while binary_sensor.heatwave_active is on.
+        # DAY CAP (2026-09-22): max 66% per fan 08:00-18:00 (Dagmar), 100% outside.
         - variables:
             v: >
               {% set raw = value | int %}
+              {% set hi = 67 if today_at('08:00') <= now() < today_at('18:00') else 100 %}
               {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.fancoil_cs','cool') %}
-                {{ [raw, 16] | max }}
+                {{ [[raw, 16] | max, hi] | min }}
               {% else %}
-                {{ raw }}
+                {{ [raw, hi] | min }}
               {% endif %}
             step: >
               {% if v | int <= 0 %}0
@@ -368,13 +372,15 @@
       set_value:
         # HEATWAVE FLOOR (2026-08-01) — see Fancoil Tania note. 16%, any
         # preset, day and night, while binary_sensor.heatwave_active is on.
+        # DAY CAP (2026-09-22): max 66% per fan 08:00-18:00 (Dagmar), 100% outside.
         - variables:
             v: >
               {% set raw = value | int %}
+              {% set hi = 67 if today_at('08:00') <= now() < today_at('18:00') else 100 %}
               {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.fancoil_meeting','cool') %}
-                {{ [raw, 16] | max }}
+                {{ [[raw, 16] | max, hi] | min }}
               {% else %}
-                {{ raw }}
+                {{ [raw, hi] | min }}
               {% endif %}
             step: >
               {% if v | int <= 0 %}0
@@ -457,13 +463,17 @@
         # this is the same 100% assertion as automation.heatwave_fan_boost,
         # just also applied inline so it holds even between that automation's
         # 2-minute reassertions.
+        # DAY CAP (2026-09-22): max 66% per fan 08:00-18:00 (Dagmar), 100%
+        # outside — the day cap wins over the heatwave 100% pin above during
+        # 08:00-18:00; outside those hours the pin is unaffected.
         - variables:
             v: >
               {% set raw = value | int %}
+              {% set hi = 67 if today_at('08:00') <= now() < today_at('18:00') else 100 %}
               {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.fancoil_openspace','cool') %}
-                {{ [raw, 100] | max }}
+                {{ [[raw, 100] | max, hi] | min }}
               {% else %}
-                {{ raw }}
+                {{ [raw, hi] | min }}
               {% endif %}
             step: >
               {% if v | int <= 0 %}0
@@ -545,13 +555,15 @@
         # for large gaps (cold morning preheat).
         # HEATWAVE FLOOR (2026-08-01) — see Fancoil Tania note. 16%, any
         # preset, day and night, while binary_sensor.heatwave_active is on.
+        # DAY CAP (2026-09-22): max 66% per fan 08:00-18:00 (Dagmar), 100% outside.
         - variables:
             v: >
               {% set raw = value | int %}
+              {% set hi = 67 if today_at('08:00') <= now() < today_at('18:00') else 100 %}
               {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.fancoil_reception','cool') %}
-                {{ [raw, 16] | max }}
+                {{ [[raw, 16] | max, hi] | min }}
               {% else %}
-                {{ raw }}
+                {{ [raw, hi] | min }}
               {% endif %}
             spd: >
               {% if v | int <= 0 %}0
@@ -604,13 +616,17 @@
         # on, any preset, day and night. Also asserted by
         # automation.heatwave_fan_boost as belt-and-suspenders (same pattern
         # as OpenSpace).
+        # DAY CAP (2026-09-22): max 66% per fan 08:00-18:00 (Dagmar), 100%
+        # outside — the day cap wins over the heatwave 100% pin above during
+        # 08:00-18:00; outside those hours the pin is unaffected.
         - variables:
             v: >
               {% set raw = value | int %}
+              {% set hi = 67 if today_at('08:00') <= now() < today_at('18:00') else 100 %}
               {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.fancoil_entrance','cool') %}
-                {{ [raw, 100] | max }}
+                {{ [[raw, 100] | max, hi] | min }}
               {% else %}
-                {{ raw }}
+                {{ [raw, hi] | min }}
               {% endif %}
             spd: >
               {% if v | int <= 0 %}0
