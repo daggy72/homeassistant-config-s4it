@@ -18,3 +18,38 @@ boost_zone:
       data:
         preset: boost
         duration_minutes: 60
+
+# --- Climate season control, callable from Assist / MCP (2026-09-22) ---
+# HassTurnOn can start an exposed script, but it cannot pick an input_select
+# option. These three wrappers give the assistant (and voice) a way to switch
+# the season without the dashboard. Expose them under Settings > Voice
+# assistants > Expose, or they stay dashboard-only.
+climate_season_summer:
+  alias: "Climate Season Summer"
+  description: "Set the office climate season to summer (cooling schedules + chiller active)."
+  sequence:
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.climate_season
+      data:
+        option: summer
+
+climate_season_off:
+  alias: "Climate Season Off"
+  description: "Set the office climate season to off (all fancoils off, chiller stopped)."
+  sequence:
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.climate_season
+      data:
+        option: "off"
+
+climate_season_winter:
+  alias: "Climate Season Winter"
+  description: "Set the office climate season to winter (heating schedules)."
+  sequence:
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.climate_season
+      data:
+        option: winter
