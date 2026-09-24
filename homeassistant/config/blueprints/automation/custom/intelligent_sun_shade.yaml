@@ -231,20 +231,34 @@ actions:
               name: "Intelligent Sun Shade"
               message: "{{ room_label }}: manual override detected, grace timer started"
 
-      # --- Branch 2: Predictive close at window start ---
+      # --- Branch 2: Sun close — window start, or the sky clearing later ---
+      # Glare on monitors, not only heat: any sunny workday hour inside the room's
+      # azimuth window closes the shade. The forecast-max gate was dropped
+      # 2026-09-24 (Dagmar: "lowered to 70% on sunny workingdays ... also to avoid
+      # heat building up") and the clear_sky trigger, which had no branch at all,
+      # now re-evaluates mid-morning when the clouds break.
       - conditions:
-          - condition: trigger
-            id: window_start
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: window_start
+              - condition: trigger
+                id: clear_sky
           - condition: state
             entity_id: !input manual_grace_timer
             state: idle
           - condition: numeric_state
             entity_id: sun.sun
+            attribute: azimuth
+            above: !input sun_azimuth_min
+          - condition: numeric_state
+            entity_id: sun.sun
+            attribute: azimuth
+            below: !input sun_azimuth_max
+          - condition: numeric_state
+            entity_id: sun.sun
             attribute: elevation
             above: !input sun_elevation_min
-          - condition: numeric_state
-            entity_id: input_number.shade_today_outdoor_max_forecast
-            above: input_number.shade_forecast_max_threshold
           - condition: numeric_state
             entity_id: weather.forecast_home
             attribute: cloud_coverage
@@ -449,9 +463,6 @@ actions:
             entity_id: sun.sun
             attribute: elevation
             above: !input sun_elevation_min
-          - condition: numeric_state
-            entity_id: input_number.shade_today_outdoor_max_forecast
-            above: input_number.shade_forecast_max_threshold
           - condition: numeric_state
             entity_id: weather.forecast_home
             attribute: cloud_coverage

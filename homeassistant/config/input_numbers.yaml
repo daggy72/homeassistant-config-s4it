@@ -14,7 +14,9 @@ shade_forecast_max_threshold:
 shade_clouds_close_threshold:
   name: "Shade — Clouds (close)"
   icon: mdi:cloud-outline
-  initial: 50
+  # 2026-09-24: 50 -> 65. A 56% "partlycloudy" morning still put glare on the
+  # CS monitors, so the shade never closed. 65/85 keeps a 20-point hysteresis.
+  initial: 65
   min: 20
   max: 80
   step: 5
@@ -24,7 +26,7 @@ shade_clouds_close_threshold:
 shade_clouds_open_threshold:
   name: "Shade — Clouds (open)"
   icon: mdi:cloud
-  initial: 70
+  initial: 85
   min: 40
   max: 90
   step: 5
