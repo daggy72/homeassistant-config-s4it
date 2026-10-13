@@ -1,0 +1,99 @@
+{
+ "model": "UDMPROMAX",
+ "mac": "28:70:4e:5c:ee:96",
+ "name": "S4IT-Cassano",
+ "_id": "66b53459ed670e5b159526e1",
+ "port_overrides": [
+  {
+   "setting_preference": "auto",
+   "op_mode": "switch",
+   "port_security_enabled": false,
+   "stormctrl_ucast_rate": 100,
+   "forward": "all",
+   "stormctrl_bcast_rate": 100,
+   "stormctrl_mcast_enabled": false,
+   "stormctrl_ucast_enabled": false,
+   "egress_rate_limit_kbps_enabled": false,
+   "isolation": false,
+   "tagged_vlan_mgmt": "auto",
+   "port_idx": 1,
+   "stormctrl_bcast_enabled": false,
+   "port_keepalive_enabled": false,
+   "stormctrl_mcast_rate": 100,
+   "native_networkconf_id": "67508707aee1a61813accc59",
+   "name": "Port 1",
+   "port_security_mac_address": [],
+   "autoneg": true
+  },
+  {
+   "port_idx": 2,
+   "forward": "all",
+   "native_networkconf_id": "67508707aee1a61813accc59",
+   "autoneg": true
+  },
+  {
+   "port_idx": 3,
+   "forward": "all",
+   "native_networkconf_id": "67508707aee1a61813accc59",
+   "autoneg": true
+  },
+  {
+   "setting_preference": "auto",
+   "port_security_enabled": false,
+   "forward": "all",
+   "egress_rate_limit_kbps_enabled": false,
+   "isolation": false,
+   "tagged_vlan_mgmt": "auto",
+   "port_idx": 4,
+   "sd_wan_underlay_port": false,
+   "port_keepalive_enabled": false,
+   "native_networkconf_id": "67508707aee1a61813accc59",
+   "name": "Port 4",
+   "port_security_mac_address": [],
+   "autoneg": true
+  },
+  {
+   "port_idx": 5,
+   "forward": "all",
+   "native_networkconf_id": "67508707aee1a61813accc59",
+   "autoneg": true
+  },
+  {
+   "port_idx": 6,
+   "forward": "all",
+   "native_networkconf_id": "67508707aee1a61813accc59",
+   "autoneg": true
+  },
+  {
+   "port_idx": 7,
+   "forward": "all",
+   "native_networkconf_id": "67508707aee1a61813accc59",
+   "autoneg": true
+  },
+  {
+   "port_idx": 8,
+   "forward": "all",
+   "native_networkconf_id": "67508707aee1a61813accc59",
+   "autoneg": true
+  },
+  {
+   "port_idx": 9,
+   "forward": "all",
+   "native_networkconf_id": "67508707aee1a61813accc59",
+   "name": "Port 9",
+   "autoneg": true
+  },
+  {
+   "port_idx": 10,
+   "forward": "all",
+   "native_networkconf_id": "67508707aee1a61813accc59",
+   "autoneg": true
+  },
+  {
+   "port_idx": 11,
+   "forward": "all",
+   "native_networkconf_id": "67508707aee1a61813accc59",
+   "autoneg": true
+  }
+ ]
+}

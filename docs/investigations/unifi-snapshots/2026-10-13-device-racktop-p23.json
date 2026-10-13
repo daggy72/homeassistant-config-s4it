@@ -1,0 +1,40 @@
+{
+ "model": "USL24P",
+ "name": "USW 24 PoE (Rack Top)",
+ "_id": "6800e48eb0c04e1d1d8350f2",
+ "port_overrides": [
+  {
+   "setting_preference": "auto",
+   "port_security_enabled": false,
+   "forward": "all",
+   "egress_rate_limit_kbps_enabled": false,
+   "isolation": false,
+   "tagged_vlan_mgmt": "auto",
+   "port_idx": 19,
+   "multicast_router_mode": "NONE",
+   "voice_networkconf_id": "",
+   "stp_port_mode": true,
+   "port_keepalive_enabled": false,
+   "stp_bpdu_guard_enabled": false,
+   "native_networkconf_id": "67508707aee1a61813accc59",
+   "name": "Port 19",
+   "port_security_mac_address": [],
+   "dot1x_idle_timeout": 300,
+   "autoneg": true,
+   "stp_edge_state": "auto",
+   "lldpmed_enabled": true,
+   "dot1x_ctrl": "force_authorized"
+  },
+  {
+   "setting_preference": "auto",
+   "port_idx": 23,
+   "port_security_enabled": false,
+   "forward": "all",
+   "native_networkconf_id": "67508707aee1a61813accc59",
+   "name": "Port 23",
+   "port_security_mac_address": [],
+   "tagged_vlan_mgmt": "auto"
+  }
+ ],
+ "mac": "74:ac:b9:52:37:ab"
+}

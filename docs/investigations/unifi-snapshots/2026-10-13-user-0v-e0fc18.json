@@ -1,0 +1,30 @@
+{
+ "last_ip": "10.0.11.142",
+ "oui": "",
+ "first_seen": 1787593339,
+ "last_seen": 1787593339,
+ "is_guest": false,
+ "fingerprint_engine_version": "0.0.0",
+ "is_wired": true,
+ "last_ipv6": [
+  "fe80::8a13:bfff:fee0:fc1b"
+ ],
+ "dev_family": 7,
+ "mac": "88:13:bf:e0:fc:1b",
+ "hostname": "shellypro0110pm-8813bfe0fc18",
+ "dev_cat": 49,
+ "network_members_group_ids": [],
+ "last_uplink_name": "USW Enterprise 48 PoE",
+ "confidence": 1,
+ "usergroup_id": "",
+ "last_uplink_mac": "28:70:4e:df:c1:41",
+ "last_uplink_remote_port": 2,
+ "last_connection_network_name": "Default",
+ "fingerprint_source": 5,
+ "dev_id": 4187,
+ "last_connection_network_id": "67508707aee1a61813accc59",
+ "site_id": "675086f6aee1a61813accc3f",
+ "os_name": 1,
+ "_id": "6a8c827e7cb4c4ea8013ec86",
+ "dev_vendor": 568
+}

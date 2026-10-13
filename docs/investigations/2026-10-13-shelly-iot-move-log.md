@@ -1,0 +1,47 @@
+- 12:16:35 # wave 2 start (no HA token for Cassano found under ~/.claude/credentials; HA steps limited to MCP reads)
+- 12:17:01 reserve cover34987a 34:98:7a:47:c9:b3 -> 10.0.20.51: {'rc': 'ok'}
+- 12:17:01 reboot 34987a: null
+- 12:17:02 port racktop-p23/23 native -> fc2a: {'rc': 'ok'}
+- 12:23:27 wave 2: eth verified on IoT 10.0.20.51 (reservation ok, port 23 IoT). HA entry host is 10.0.20.59 (Wi-Fi IP) and did not self-update; Wi-Fi disabled made entry fail -> Wi-Fi RE-ENABLED to keep HA working. No Cassano HA token -> cannot run reconfigure. STOPPED, waves 3/4a/4b not started.
+- 12:35:55 HA token available; reconfigure flow works. wave 2 repoint 34987a -> 10.0.20.51 done (reconfigure_successful)
+- 12:36:35 wave 2 wifi off; HA state loaded unavailable=[]
+- 12:36:44 # wave 3 start
+- 12:36:45 reserve 0v-d95330 88:13:BF:D9:53:33 -> 10.0.20.224: {'rc': 'ok'}
+- 12:36:45 reserve 0v-d9525c 88:13:BF:D9:52:5F -> 10.0.20.62: {'rc': 'ok'}
+- 12:36:46 reserve 0v-e0fc18 88:13:BF:E0:FC:1B -> 10.0.20.142: {'rc': 'ok'}
+- 12:36:46 reserve 0v-e0e42c 88:13:BF:E0:E4:2F -> 10.0.20.74: {'rc': 'ok'}
+- 12:36:46 reserve cover-2cbcbb 2C:BC:BB:B1:FF:9F -> 10.0.20.77: {'rc': 'ok'}
+- 12:36:46 reserve 4pm-963420 84:1F:E8:96:34:23 -> 10.0.20.83: {'rc': 'ok'}
+- 12:36:46 reserve 4pm-971434 84:1F:E8:97:14:37 -> 10.0.20.220: {'rc': 'ok'}
+- 12:36:46 reboot 0v-d95330 null
+- 12:36:47 reboot 0v-d9525c null
+- 12:36:47 reboot 0v-e0fc18 null
+- 12:36:47 reboot 0v-e0e42c null
+- 12:36:47 reboot cover-2cbcbb null
+- 12:36:47 reboot 4pm-963420 null
+- 12:36:47 reboot 4pm-971434 null
+- 12:36:47 port ent48-p2/2 native -> fc2a: {'rc': 'ok'}
+- 12:38:52 wave 3 IoT reachable: {'224': True, '62': True, '142': True, '74': True, '77': True, '83': True, '220': True}
+- 12:39:03 shellypro0110pm-8813bfd95330 repoint ['abort', 'reconfigure_successful']
+- 12:39:03 shellypro0110pm-8813bfd9525c repoint ['abort', 'reconfigure_successful']
+- 12:39:03 shellypro0110pm-8813bfe0fc18 repoint ['abort', 'reconfigure_successful']
+- 12:39:03 shellypro0110pm-8813bfe0e42c repoint ['abort', 'reconfigure_successful']
+- 12:39:03 shellypro2cover-2cbcbbb1ff9c repoint ['abort', 'reconfigure_successful']
+- 12:39:03 shellypro4pm-841fe8963420 repoint ['abort', 'reconfigure_successful']
+- 12:39:04 shellypro4pm-841fe8971434 repoint ['abort', 'reconfigure_successful']
+- 12:40:35 wave 3 wifi off on 963420/971434; HA checked
+- 12:40:40 # wave 4a start
+- 12:40:45 reserve 4pm-ea3fc4 ec:e3:34:ea:3f:c7 -> 10.0.20.41: {'rc': 'ok'}
+- 12:40:45 reboot ea3fc4 null
+- 12:40:45 port udm-p5/5 native -> fc2a: {'rc': 'ok'}
+- 12:42:36 shellypro4pm-ece334ea3fc4 repoint ['abort', 'reconfigure_successful']
+- 12:43:09 # wave 4b start
+- 12:43:14 reserve 4pm-eaf568 ec:e3:34:ea:f5:6b -> 10.0.20.42: {'rc': 'ok'}
+- 12:43:14 reboot eaf568 null
+- 12:43:14 port racktop-p19/19 native -> fc2a: {'rc': 'ok'}
+- 12:45:05 shellypro4pm-ece334eaf568 repoint ['abort', 'reconfigure_successful']
+- 12:45:40 final verify: unavailable shelly entities=[]
+- 12:46:05 # wave 1 prep
+- 12:46:05 reserve wall-display-mensa 00:a9:0b:53:f6:8a -> 10.0.20.33: {'rc': 'ok'}
+- 12:56:14 ShellyWallDisplay-00A90B53F68A repoint ['abort', 'reconfigure_successful']
+- 12:56:48 wave 1: Mensa display on 10.0.20.33, HA repointed, entry loaded, temperature sensor live (23.2)
