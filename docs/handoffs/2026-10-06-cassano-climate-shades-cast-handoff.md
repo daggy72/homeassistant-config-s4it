@@ -8,6 +8,9 @@ Earlier record: `docs/handoffs/2026-09-22-climate-watch-handoff.md`, Obsidian `d
 1. **Projects 2 wall display.** He installs it "soon, not today". Then: point the Projects 2 VT at the new display's temperature sensor (today it reads the Mensa display `sensor.shellywalldisplay_00a90b53f68a_temperature`). Put the new display on `ff4.iot` with a UniFi reservation.
 2. **Optional, not asked yet:** should the weekly update also cover the 10 ESPHome fancoil boards' firmware and HACS (Versatile Thermostat)? Today it does only the HA and ESPHome containers.
 
+3. **it-cx smart plugs (2026-10-19).** Dagmar relays to it-cx (Codex, pane w6:p5E): `Read /Users/dagmar/DEV-SHARED/docs/handoffs/2026-10-19-it-cx-cassano-smartplugs.md` (how to switch `switch.wh4_smartplug_cm003mini` / `_cm004mini` via the HA API). Not confirmed that it-cx got it. Never type into that pane yourself while it is focused.
+4. Subagent `shelly-iot-mover` is idle with no work left; away mode blocked stopping it.
+
 ## Done since 2026-10-06
 
 - B1826 resolved: ea3fc4 outputs 1+3 `detached` / `on`.
