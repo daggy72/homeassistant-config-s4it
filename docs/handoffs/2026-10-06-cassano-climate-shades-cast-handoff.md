@@ -11,6 +11,11 @@ Earlier record: `docs/handoffs/2026-09-22-climate-watch-handoff.md`, Obsidian `d
 3. **it-cx smart plugs (2026-10-19).** Dagmar relays to it-cx (Codex, pane w6:p5E): `Read /Users/dagmar/DEV-SHARED/docs/handoffs/2026-10-19-it-cx-cassano-smartplugs.md` (how to switch `switch.wh4_smartplug_cm003mini` / `_cm004mini` via the HA API). Not confirmed that it-cx got it. Never type into that pane yourself while it is focused.
 4. Subagent `shelly-iot-mover` is idle with no work left; away mode blocked stopping it.
 
+## Open bug (2026-10-24)
+
+- **B2770**: the Sun 2026-10-18 run rolled HA 2026.10.2 back (loaded 83→82) and the notice failed with 502, so nobody was told. HA still on 2026.10.1. Check booked in Coding Tasks for Mon 2026-10-26 09:00 (session `homeassistant-wrk`).
+- it-wrk4 (F2686) power-cycles the two smart plugs; HA has no automation on them, no conflict.
+
 ## Done since 2026-10-06
 
 - B1826 resolved: ea3fc4 outputs 1+3 `detached` / `on`.
