@@ -1708,3 +1708,48 @@
               target:
                 entity_id: input_boolean.watchdog_devices_unavailable_alerting
   mode: single
+# B2810 (2026-10-26): reconcile ESP32 fans against sustained zero VT demand.
+- id: fancoil_stray_fan_off
+  alias: Fancoil stray fan off
+  description: "Turn off ESP32 zone fans left on with zero VT demand. B2810, 2026-10-26."
+  triggers:
+    - trigger: time_pattern
+      minutes: "/5"
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.heatwave_active
+      state: "off"
+  actions:
+    - repeat:
+        for_each:
+          - {name: openspace, clim: climate.fancoil_openspace, demand: sensor.fancoil_openspace_demand, fans: [fan.fancoilcontroller_01_fancoil, fan.fancoil_02_fancoil]}
+          - {name: entrance, clim: climate.fancoil_entrance, demand: sensor.fancoil_entrance_demand, fans: [fan.fancoil_03_fancoil]}
+          - {name: reception, clim: climate.fancoil_reception, demand: sensor.fancoil_reception_demand, fans: [fan.fancoil_04_fancoil]}
+          - {name: meeting, clim: climate.fancoil_meeting, demand: sensor.fancoil_meeting_demand, fans: [fan.fancoil_05_fancoil, fan.fancoil_06_fancoil]}
+          - {name: cs, clim: climate.fancoil_cs, demand: sensor.fancoil_cs_demand, fans: [fan.fancoil_07_fancoil, fan.fancoil_08_fancoil]}
+          - {name: tania, clim: climate.fancoil_tania, demand: sensor.fancoil_tania_demand, fans: [fan.fancoil_09_fancoil, fan.fancoil_10_fancoil]}
+        sequence:
+          - if:
+              - condition: template
+                value_template: >
+                  {% set fns = namespace(on_long=false) %}
+                  {% for f in repeat.item.fans %}
+                    {% if states(f) == 'on' and as_timestamp(now()) - as_timestamp(states[f].last_changed) >= 600 %}
+                      {% set fns.on_long = true %}
+                    {% endif %}
+                  {% endfor %}
+                  {{ states('binary_sensor.heatwave_active') != 'on'
+                     and states(repeat.item.clim) in ['heat','cool']
+                     and states(repeat.item.demand) | float(1) == 0
+                     and (as_timestamp(now()) - as_timestamp(states[repeat.item.demand].last_changed)) >= 600
+                     and fns.on_long }}
+            then:
+              - action: fan.turn_off
+                target:
+                  entity_id: "{{ repeat.item.fans }}"
+              - action: logbook.log
+                data:
+                  name: Fancoil stray fan off
+                  message: "Turned off stray fan(s) in {{ repeat.item.name }} (zero demand for 10 minutes)."
+                  entity_id: "{{ repeat.item.clim }}"
+  mode: single
