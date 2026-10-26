@@ -1,20 +1,24 @@
-# Handoff — Cassano HA: shades, fancoils, Cast, Shellys on IoT, weekly updates (updated 2026-10-13)
+# Handoff — Cassano HA: shades, fancoils, Cast, Shellys on IoT, weekly updates (updated 2026-10-26)
 
 Session "HA-CM1 10.1" (Claude). Clean stop: nothing running, nothing half-built. Last commit `ee58203` (local main; GitHub not synced, see below).
 Earlier record: `docs/handoffs/2026-09-22-climate-watch-handoff.md`, Obsidian `dagmars-desk/dev-journal/sessions/2026-09-26-…-sun-shade-glare-fix.md` and `2026-10-06-…-cast-popups-triage.md`.
 
 ## Needs Dagmar
 
-1. **Projects 2 wall display.** He installs it "soon, not today". Then: point the Projects 2 VT at the new display's temperature sensor (today it reads the Mensa display `sensor.shellywalldisplay_00a90b53f68a_temperature`). Put the new display on `ff4.iot` with a UniFi reservation.
-2. **Optional, not asked yet:** should the weekly update also cover the 10 ESPHome fancoil boards' firmware and HACS (Versatile Thermostat)? Today it does only the HA and ESPHome containers.
+1. **B2820 HA backup to NAS (it-helpdesk).** Since ~2026-10-23 the backup agent `synology_dsm.2050SBR8V3TQ4` is unavailable (reload did not help). Dagmar must change DSM (Claude may not; browser to DSM is blocked and user-rights changes are off limits): Control Panel > User & Group > `homeassistant` > Applications: File Station = Allow; Permissions: `backup` = Read/Write. After his "done": reload synology_dsm entry `01JT86K7NCDD5Z72HWV8HFMX53`, check `backup/agents/info` lists the agent, check repairs clear, resolve B2820. Local + cloud backups still OK daily.
+2. **Meeting room target 24 °C (manual, 2026-10-26 13:50)** because Dagmar works there while builders are in his office; the sensor reads higher than it feels. Evening schedule resets it. Fancoil Dagmar is OFF today; Morning VT Alignment turns it back on Tue 07:00 unless he says the works continue.
+3. **Projects 2 wall display.** Not installed yet. Then: point the Projects 2 VT at the new display's sensor (today the Mensa display), put it on `ff4.iot` with a UniFi reservation.
+4. **Optional, not asked yet:** weekly update also for ESPHome fancoil firmware and HACS (VT)?
+5. **it-cx smart plugs brief** (`/Users/dagmar/DEV-SHARED/docs/handoffs/2026-10-19-it-cx-cassano-smartplugs.md`): relay not confirmed.
 
-3. **it-cx smart plugs (2026-10-19).** Dagmar relays to it-cx (Codex, pane w6:p5E): `Read /Users/dagmar/DEV-SHARED/docs/handoffs/2026-10-19-it-cx-cassano-smartplugs.md` (how to switch `switch.wh4_smartplug_cm003mini` / `_cm004mini` via the HA API). Not confirmed that it-cx got it. Never type into that pane yourself while it is focused.
-4. Subagent `shelly-iot-mover` is idle with no work left; away mode blocked stopping it.
+## Open bugs
 
-## Open bug (2026-10-24)
+- **B2810** Meeting fancoil_05 stayed at 33 % while VT asked 0 % (room 26.7 vs 18). Manual `number.fancoil_meeting` = 0 fixed it. Suspect: template state (avg of two fans) never matches what VT wrote. Check other dual-fan zones.
+- **B2770** silent update rollback: fix committed by another session (871b69c); see `docs/handoffs/2026-10-26-b2770-update-notify-handoff.md`. 2026-10-25 run rolled back 2026.10.4 again (loaded 83→82).
 
-- **B2770**: the Sun 2026-10-18 run rolled HA 2026.10.2 back (loaded 83→82) and the notice failed with 502, so nobody was told. HA still on 2026.10.1. Check booked in Coding Tasks for Mon 2026-10-26 09:00 (session `homeassistant-wrk`).
-- it-wrk4 (F2686) power-cycles the two smart plugs; HA has no automation on them, no conflict.
+## Winter heat-up (2026-10-26)
+
+Season set to winter 07:59. Result in `docs/investigations/2026-10-26-winter-heatup-log.md` (e7b4c4f): rooms react in 6–19 min, warm 1–2 °C/h, reach target in 14 min – 2 h 11 (sunny morning, outdoor 7.6→13.5, best case). Re-run anytime: `python3 scripts/heatup_report.py [ISO start]`. Entrance heat presets were 30/30/30 at runtime, set to 19/20/22 (Dagmar OK). Mensa display reports only on change, so VT Mensa / Projects 2 drop into `safety` after 60 min without change.
 
 ## Done since 2026-10-06
 
@@ -30,6 +34,7 @@ Earlier record: `docs/handoffs/2026-09-22-climate-watch-handoff.md`, Obsidian `d
 - Decision: keep Cast discovery across networks (mDNS `all`); the announcement is switched off per TV.
 - Decision: winter shade behaviour unchanged ("on winterdays we will see").
 - Decision: all Shellys live on IoT VLAN 20 with UniFi reservations; wired dual-homed Shellys have Wi-Fi off.
+- Decision: Entrance heat presets follow OpenSpace (19/20/22), not 30 (Dagmar 2026-10-26).
 - Decision: HA + ESPHome containers update weekly by themselves; HA x.y.0 skipped; automatic rollback on a failed check.
 - Decision: leave the foreign uncommitted `CLAUDE.md` / `README.md` edits alone; sync only own commits.
 
