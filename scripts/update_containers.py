@@ -44,20 +44,23 @@ def ha(path, data=None):
     return json.load(urllib.request.urlopen(req, timeout=20))
 
 
-def health():
+def health(entries=None):
     """(loaded config entries, unavailable entities) or None when HA does not answer."""
     try:
-        entries = ha("/api/config/config_entries/entry")
+        config_entries = ha("/api/config/config_entries/entry")
         states = ha("/api/states")
     except Exception:
         return None
-    return (sum(e["state"] == "loaded" for e in entries),
+    if entries is not None:
+        entries.clear()
+        entries.update((e["entry_id"], e) for e in config_entries)
+    return (sum(e["state"] == "loaded" for e in config_entries),
             sum(s["state"] == "unavailable" for s in states))
 
 
-def wait_health(minutes):
+def wait_health(minutes, entries=None):
     for _ in range(minutes * 2):
-        h = health()
+        h = health(entries)
         if h:
             return h
         time.sleep(30)
@@ -66,12 +69,18 @@ def wait_health(minutes):
 
 def notify(title, msg):
     log(f"{title}: {msg}")
-    if not DRY:
+    if DRY:
+        return
+    for attempt in range(5):
         try:
             ha("/api/services/persistent_notification/create",
                {"title": title, "message": msg, "notification_id": "container_update"})
+            return
         except Exception as e:
-            log(f"notify failed: {e}")
+            if attempt == 4:
+                log(f"notify failed: {e}")
+            else:
+                time.sleep(30)
 
 
 def rollback(service, img, old_id):
@@ -99,6 +108,7 @@ def update(service, img, check):
         check(img, old_id)
     except Exception as e:
         rollback(service, img, old_id)
+        wait_health(10)
         notify(f"{service} update rolled back", f"{old_ver} -> {new_ver} failed: {e}. Running {old_ver} again.")
         return
     notify(f"{service} updated", f"{old_ver} -> {new_ver}")
@@ -109,18 +119,23 @@ def check_ha(img, old_id):
               f"-m homeassistant --script check_config -c /config", check=False)
     if "Failed config" in out or "Invalid config" in out:
         raise RuntimeError("check_config: " + out[-300:])
-    before = health()
+    before_entries, after_entries = {}, {}
+    before = health(before_entries)
     if not before:
         raise RuntimeError("HA not healthy before the update")
     nas(f"{COMPOSE} up -d homeassistant")
     time.sleep(60)
-    after = wait_health(10)
+    after = wait_health(10, after_entries)
     time.sleep(180)  # let integrations finish loading
-    after = health() or after
+    after = health(after_entries) or after
     if not after:
         raise RuntimeError("HA API down 10 min after the update")
     if after[0] < before[0] or after[1] > before[1] + 5:
-        raise RuntimeError(f"health worse: loaded {before[0]}->{after[0]}, unavailable {before[1]}->{after[1]}")
+        lost = [f"{e['title']} ({e['domain']}: {after_entries.get(entry_id, {}).get('state', 'missing')})"
+                for entry_id, e in before_entries.items()
+                if e["state"] == "loaded" and after_entries.get(entry_id, {}).get("state") != "loaded"]
+        raise RuntimeError(f"health worse: loaded {before[0]}->{after[0]}, unavailable {before[1]}->{after[1]}"
+                           + ("; lost entries: " + ", ".join(lost) if lost else ""))
 
 
 def check_esphome(img, old_id):
