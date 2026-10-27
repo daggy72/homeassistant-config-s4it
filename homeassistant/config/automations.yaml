@@ -550,6 +550,80 @@
           data:
             temperature: "{{ boil }}"
 
+- id: offhours_frost_enforcer_winter
+  alias: Off-hours / Weekend Frost Protection Enforcer (winter)
+  description: >
+    Winter twin of offhours_boil_enforcer. The 18:00 schedule slots park every
+    VT in preset 'none', and VT then restores its last manual target — the
+    summer boil value 30 °C. In winter that heated every room to ~29 °C all
+    night (2026-10-26). So in winter, on non-workdays OR 18:00–07:00, every VT
+    sits in HEAT at a 16 °C frost target. Ends at 07:00 so Morning VT Alignment
+    can bring comfort back. Runs every 10 min + on HA start + just after 18:00.
+  mode: single
+  max_exceeded: silent
+  triggers:
+  - trigger: time_pattern
+    minutes: '/10'
+  - trigger: homeassistant
+    event: start
+  # 30 s after the 18:00 schedule slots, so their preset 'none' cannot win
+  - trigger: time
+    at: '18:00:30'
+  conditions:
+  - condition: state
+    entity_id: input_select.climate_season
+    state: winter
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: binary_sensor.workday_sensor
+      state: 'off'
+    - condition: time
+      after: '18:00:00'
+      before: '07:00:00'
+  actions:
+  - variables:
+      frost: 16
+      zones:
+      - climate.fancoil_dagmar
+      - climate.fancoil_tania
+      - climate.projects_1
+      - climate.fancoil_reception
+      - climate.fancoil_cs
+      - climate.fancoil_meeting
+      - climate.climate_mensa
+      - climate.projects_2
+      - climate.fancoil_openspace
+      - climate.fancoil_entrance
+  - repeat:
+      for_each: "{{ zones }}"
+      sequence:
+      - variables:
+          z: "{{ repeat.item }}"
+      # a zone switched off by hand stays off
+      - if:
+        - condition: template
+          value_template: "{{ states(z) == 'heat' }}"
+        then:
+        - if:
+          - condition: template
+            value_template: "{{ state_attr(z,'preset_mode') != 'none' }}"
+          then:
+          - action: climate.set_preset_mode
+            target:
+              entity_id: "{{ z }}"
+            data:
+              preset_mode: none
+        - if:
+          - condition: template
+            value_template: "{{ (state_attr(z,'temperature') | float(0)) != frost }}"
+          then:
+          - action: climate.set_temperature
+            target:
+              entity_id: "{{ z }}"
+            data:
+              temperature: "{{ frost }}"
+
 - id: warehouse_cell_profile_guard
   alias: Warehouse Cell Profile Guard
   description: >
