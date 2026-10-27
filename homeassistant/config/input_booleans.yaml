@@ -28,3 +28,8 @@ watchdog_stale_preset_drift_alerting:
 watchdog_devices_unavailable_alerting:
   name: "Watchdog Devices Unavailable — Alerting"
   icon: mdi:bell-ring
+
+# Builders work in Office Dagmar (2026-10-26+). While on, its VT is held off.
+office_dagmar_closed:
+  name: "Office Dagmar — Closed (heating off)"
+  icon: mdi:door-closed-lock

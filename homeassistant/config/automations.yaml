@@ -557,8 +557,8 @@
     VT in preset 'none', and VT then restores its last manual target — the
     summer boil value 30 °C. In winter that heated every room to ~29 °C all
     night (2026-10-26). So in winter, on non-workdays OR 18:00–07:00, every VT
-    sits in HEAT at a 16 °C frost target. Ends at 07:00 so Morning VT Alignment
-    can bring comfort back. Runs every 10 min + on HA start + 17:59 + 18:00:30.
+    sits in HEAT at a 16 °C frost target. Ends at 06:00 on workdays so
+    winter_morning_preheat can bring comfort back. Runs every 10 min + on HA start + 17:59 + 18:00:30.
     17:59 (B2838, 2026-10-27): on the first run the 18:00 slot still restored 30
     for a moment; the fancoils got 100 % and stayed there after the target fell
     to 16. Setting 16 at 17:59 means preset 'none' restores 16, never 30.
@@ -586,7 +586,7 @@
       state: 'off'
     - condition: time
       after: '17:59:00'
-      before: '07:00:00'
+      before: '06:00:00'
   actions:
   - variables:
       frost: 16
@@ -629,6 +629,72 @@
               entity_id: "{{ z }}"
             data:
               temperature: "{{ frost }}"
+
+- id: winter_morning_preheat
+  alias: Winter Morning Preheat (workday 06:00)
+  description: >
+    Winter only. Rooms sit at 16 °C overnight and warm 1–2 °C/h (heat-up test
+    2026-10-26, Projects 1 needed ~2 h), so the 07:30 office preheat is too late.
+    At 06:00 on workdays the offices and open areas go to HEAT + comfort.
+    Office Dagmar is skipped while input_boolean.office_dagmar_closed is on.
+    Meeting, Mensa and Projects 2 keep their own schedules.
+  triggers:
+  - trigger: time
+    at: '06:00:00'
+  conditions:
+  - condition: state
+    entity_id: input_select.climate_season
+    state: winter
+  - condition: state
+    entity_id: binary_sensor.workday_sensor
+    state: 'on'
+  actions:
+  - variables:
+      zones: >
+        {% set z = ['climate.fancoil_tania','climate.projects_1','climate.fancoil_cs',
+                    'climate.fancoil_reception','climate.fancoil_openspace','climate.fancoil_entrance'] %}
+        {% if is_state('input_boolean.office_dagmar_closed','off') %}{% set z = z + ['climate.fancoil_dagmar'] %}{% endif %}
+        {{ z }}
+  - action: climate.set_hvac_mode
+    target:
+      entity_id: "{{ zones }}"
+    data:
+      hvac_mode: heat
+  - action: climate.set_preset_mode
+    target:
+      entity_id: "{{ zones }}"
+    data:
+      preset_mode: comfort
+  mode: single
+
+- id: office_dagmar_closed_hold
+  alias: Office Dagmar closed — hold heating off
+  description: >
+    While input_boolean.office_dagmar_closed is on, any automation that turns
+    climate.fancoil_dagmar on (Morning VT Alignment, schedules, HA start) is
+    undone at once.
+  triggers:
+  - trigger: state
+    entity_id: climate.fancoil_dagmar
+    not_to: ['off', 'unavailable', 'unknown']
+  - trigger: state
+    entity_id: input_boolean.office_dagmar_closed
+    to: 'on'
+  - trigger: homeassistant
+    event: start
+  conditions:
+  - condition: state
+    entity_id: input_boolean.office_dagmar_closed
+    state: 'on'
+  - condition: template
+    value_template: "{{ states('climate.fancoil_dagmar') not in ['off','unavailable','unknown'] }}"
+  actions:
+  - action: climate.set_hvac_mode
+    target:
+      entity_id: climate.fancoil_dagmar
+    data:
+      hvac_mode: 'off'
+  mode: queued
 
 - id: warehouse_cell_profile_guard
   alias: Warehouse Cell Profile Guard
