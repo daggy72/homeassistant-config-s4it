@@ -696,6 +696,49 @@
       hvac_mode: 'off'
   mode: queued
 
+- id: vt_valve_stuck_output_zero
+  alias: VT valve output stuck — set to 0
+  description: >
+    B2838 / B2810 class. When a valve-mode VT drops its demand to 0 (target cut,
+    or VT switched off), VT does not always write 0 to its underlying
+    number.fancoil_* — the fancoil keeps running at 100 % (seen 2026-10-27
+    18:00 in 4 zones and 18:11 in Office Dagmar). Every minute: a VT that is
+    off or at valve_open_percent 0, whose output is still > 0 for 2 min, gets
+    its output set to 0. Not during a heatwave (valve floors are on purpose).
+  triggers:
+  - trigger: time_pattern
+    minutes: '/1'
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.heatwave_active
+    state: 'off'
+  actions:
+  - variables:
+      stuck: >
+        {% set ns = namespace(out=[]) %}
+        {% for c in states.climate if c.attributes.is_over_valve | default(false) %}
+          {% if c.state == 'off' or (c.attributes.valve_open_percent | float(1)) == 0 %}
+            {% for n in c.attributes.vtherm_over_valve.underlying_entities | default([]) %}
+              {% if states(n) | float(0) > 0 and (now() - states[n].last_changed).total_seconds() >= 120 %}
+                {% set ns.out = ns.out + [n] %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.out }}
+  - condition: template
+    value_template: "{{ stuck | count > 0 }}"
+  - action: number.set_value
+    target:
+      entity_id: "{{ stuck }}"
+    data:
+      value: 0
+  - action: logbook.log
+    data:
+      name: VT valve output stuck
+      message: "Set to 0 (VT demand 0): {{ stuck | join(', ') }}"
+  mode: single
+
 - id: warehouse_cell_profile_guard
   alias: Warehouse Cell Profile Guard
   description: >
