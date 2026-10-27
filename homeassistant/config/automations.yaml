@@ -558,7 +558,10 @@
     summer boil value 30 °C. In winter that heated every room to ~29 °C all
     night (2026-10-26). So in winter, on non-workdays OR 18:00–07:00, every VT
     sits in HEAT at a 16 °C frost target. Ends at 07:00 so Morning VT Alignment
-    can bring comfort back. Runs every 10 min + on HA start + just after 18:00.
+    can bring comfort back. Runs every 10 min + on HA start + 17:59 + 18:00:30.
+    17:59 (B2838, 2026-10-27): on the first run the 18:00 slot still restored 30
+    for a moment; the fancoils got 100 % and stayed there after the target fell
+    to 16. Setting 16 at 17:59 means preset 'none' restores 16, never 30.
   mode: single
   max_exceeded: silent
   triggers:
@@ -566,7 +569,10 @@
     minutes: '/10'
   - trigger: homeassistant
     event: start
-  # 30 s after the 18:00 schedule slots, so their preset 'none' cannot win
+  # 1 min before the 18:00 schedule slots, so preset 'none' restores 16
+  - trigger: time
+    at: '17:59:00'
+  # 30 s after the 18:00 schedule slots, as a second pass
   - trigger: time
     at: '18:00:30'
   conditions:
@@ -579,7 +585,7 @@
       entity_id: binary_sensor.workday_sensor
       state: 'off'
     - condition: time
-      after: '18:00:00'
+      after: '17:59:00'
       before: '07:00:00'
   actions:
   - variables:
