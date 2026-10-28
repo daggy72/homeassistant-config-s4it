@@ -44,25 +44,44 @@
         data: {}
   mode: single
 - id: '1758196497361'
-  alias: 'Auto Unlock Wallbox '
-  description: ''
+  alias: Auto Unlock Wallbox
+  description: >
+    When Dagmar, Giorgia or Tania arrive in zone CM1 (zone.home), unlock both
+    wallboxes for 5 minutes to park and plug in, then lock them again. A new
+    arrival restarts the 5 minutes. Wallbox: locking should not stop a running
+    charge (not yet verified here, 2026-10-28).
+    not_from unknown / unavailable stops a false unlock after an HA restart.
   triggers:
-  - trigger: zone
-    entity_id: device_tracker.daggys_iphone
-    zone: zone.home
-    event: enter
+  - trigger: state
+    entity_id:
+    - person.dagmar_sporck
+    - person.dagmar_sporck_2
+    - person.giorgia_sporck
+    - person.giorgia_sporck_2
+    - person.tania_rivieccio
+    - person.tania_rivieccio2
+    to: home
+    not_from:
+    - unknown
+    - unavailable
   conditions: []
   actions:
-  - device_id: 7dea3fde1d0c4a81409d4902e41d26ad
-    domain: lock
-    entity_id: ff10635796ac846572b991c00c0e076b
-    type: unlock
+  - action: lock.unlock
+    target:
+      entity_id: &wallboxes
+      - lock.wallbox_sx_pulsar_max_sn_1381212_lock
+      - lock.wallbox_pulsar_max_sn_1112020_lock
+  - action: logbook.log
+    data:
+      name: Wallboxes
+      message: "Unlocked for 5 min on arrival of {{ trigger.to_state.name }}."
+      entity_id: lock.wallbox_sx_pulsar_max_sn_1381212_lock
   - delay:
-      hours: 0
       minutes: 5
-      seconds: 0
-      milliseconds: 0
-  mode: single
+  - action: lock.lock
+    target:
+      entity_id: *wallboxes
+  mode: restart
 - id: '1770681600001'
   alias: Seasonal Climate Mode Switch
   description: >
