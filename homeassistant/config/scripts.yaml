@@ -53,3 +53,16 @@ climate_season_winter:
         entity_id: input_select.climate_season
       data:
         option: winter
+
+# --- Entrance gate (2026-10-28) ---
+# For Siri / CarPlay via the HA iOS app (Shortcuts "Run Script", CarPlay quick
+# access). Unlock needs the UniFi Access token with Locations = Edit.
+open_entrance_gate:
+  alias: "Open Entrance Gate"
+  description: "Open the CM1 entrance gate (UniFi Access)."
+  icon: mdi:gate-open
+  mode: single
+  sequence:
+    - action: button.press
+      target:
+        entity_id: button.entrance_gate_unlock

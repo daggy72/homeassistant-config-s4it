@@ -1942,3 +1942,42 @@
                   message: "Turned off stray fan(s) in {{ repeat.item.name }} (zero demand for 10 minutes)."
                   entity_id: "{{ repeat.item.clim }}"
   mode: single
+
+- id: entrance_gate_open_on_arrival
+  alias: Entrance Gate — open on arrival (workdays 08:00–17:00)
+  description: >
+    Opens the entrance gate when a person with HA app location arrives in zone
+    CM1 (zone.home) on a workday between 08:00 and 17:00. not_from unknown /
+    unavailable stops a false open after an HA restart. New users: add their
+    person here.
+  triggers:
+  - trigger: state
+    entity_id:
+    - person.dagmar_sporck
+    - person.dagmar_sporck_2
+    - person.giorgia_sporck
+    - person.giorgia_sporck_2
+    - person.tania_rivieccio
+    - person.tania_rivieccio2
+    - person.roberta_galli
+    - person.mouhamadou_mbow
+    to: home
+    not_from:
+    - unknown
+    - unavailable
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.workday_sensor
+    state: 'on'
+  - condition: time
+    after: '08:00:00'
+    before: '17:00:00'
+  actions:
+  - action: script.open_entrance_gate
+  - action: logbook.log
+    data:
+      name: Entrance Gate
+      message: "Opened on arrival of {{ trigger.to_state.name }}."
+      entity_id: button.entrance_gate_unlock
+  mode: single
+  max_exceeded: silent
