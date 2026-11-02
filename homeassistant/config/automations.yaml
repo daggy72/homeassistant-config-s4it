@@ -736,7 +736,17 @@
       stuck: >
         {% set ns = namespace(out=[]) %}
         {% for c in states.climate if c.attributes.is_over_valve | default(false) %}
-          {% if c.state == 'off' or (c.attributes.valve_open_percent | float(1)) == 0 %}
+          {% set floored = (
+            c.entity_id in ['climate.climate_mensa','climate.projects_1','climate.projects_2','climate.fancoil_dagmar','climate.fancoil_reception','climate.fancoil_tania']
+            and c.state == 'heat'
+            and c.attributes.preset_mode in ['comfort','eco']
+            and today_at('08:00') <= now() < today_at('18:00')
+          ) or (
+            c.entity_id in ['climate.climate_mensa','climate.projects_1','climate.projects_2','climate.fancoil_dagmar']
+            and c.state == 'cool'
+            and c.attributes.preset_mode in ['comfort','eco']
+          ) %}
+          {% if not floored and (c.state == 'off' or (c.attributes.valve_open_percent | float(1)) == 0) %}
             {% for n in c.attributes.vtherm_over_valve.underlying_entities | default([]) %}
               {% if states(n) | float(0) > 0 and (now() - states[n].last_changed).total_seconds() >= 120 %}
                 {% set ns.out = ns.out + [n] %}
@@ -756,6 +766,49 @@
     data:
       name: VT valve output stuck
       message: "Set to 0 (VT demand 0): {{ stuck | join(', ') }}"
+  mode: single
+
+- id: winter_office_fan_floor_reapply
+  alias: Winter office fan floor reapply
+  description: "Reapply daytime VT heating demand when a floored office output is still zero."
+  triggers:
+  - trigger: time_pattern
+    minutes: '/5'
+  conditions:
+  - condition: time
+    after: '08:00:00'
+    before: '18:00:00'
+  actions:
+  - repeat:
+      for_each:
+      - climate.climate_mensa
+      - climate.projects_1
+      - climate.projects_2
+      - climate.fancoil_dagmar
+      - climate.fancoil_reception
+      - climate.fancoil_tania
+      sequence:
+      - variables:
+          zeros: >
+            {% set ns = namespace(out=[]) %}
+            {% for n in states[repeat.item].attributes.vtherm_over_valve.underlying_entities | default([]) %}
+              {% if states(n) | float(0) == 0 %}
+                {% set ns.out = ns.out + [n] %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.out }}
+      - if:
+        - condition: template
+          value_template: >
+            {{ states(repeat.item) == 'heat'
+               and state_attr(repeat.item, 'preset_mode') in ['comfort','eco']
+               and zeros | count > 0 }}
+        then:
+        - action: number.set_value
+          target:
+            entity_id: "{{ zeros }}"
+          data:
+            value: "{{ state_attr(repeat.item, 'valve_open_percent') | int(0) }}"
   mode: single
 
 - id: warehouse_cell_profile_guard
@@ -1948,6 +2001,10 @@
                   {% endfor %}
                   {{ states('binary_sensor.heatwave_active') != 'on'
                      and states(repeat.item.clim) in ['heat','cool']
+                     and not (repeat.item.name in ['reception','tania']
+                       and states(repeat.item.clim) == 'heat'
+                       and state_attr(repeat.item.clim, 'preset_mode') in ['comfort','eco']
+                       and today_at('08:00') <= now() < today_at('18:00'))
                      and states(repeat.item.demand) | float(1) == 0
                      and (as_timestamp(now()) - as_timestamp(states[repeat.item.demand].last_changed)) >= 600
                      and fns.on_long }}
