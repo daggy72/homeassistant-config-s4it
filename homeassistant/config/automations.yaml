@@ -737,7 +737,7 @@
         {% set ns = namespace(out=[]) %}
         {% for c in states.climate if c.attributes.is_over_valve | default(false) %}
           {% set floored = (
-            c.entity_id in ['climate.climate_mensa','climate.projects_1','climate.projects_2','climate.fancoil_dagmar','climate.fancoil_reception','climate.fancoil_tania']
+            c.entity_id in ['climate.projects_1','climate.projects_2','climate.fancoil_dagmar','climate.fancoil_reception','climate.fancoil_tania']
             and c.state == 'heat'
             and c.attributes.preset_mode in ['comfort','eco']
             and today_at('08:00') <= now() < today_at('18:00')
@@ -782,7 +782,6 @@
   actions:
   - repeat:
       for_each:
-      - climate.climate_mensa
       - climate.projects_1
       - climate.projects_2
       - climate.fancoil_dagmar
