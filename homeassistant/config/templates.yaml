@@ -33,7 +33,7 @@
                 {{ [v, 16] | max }}
               {% elif is_state('climate.climate_mensa','cool') and state_attr('climate.climate_mensa','preset_mode') in ['comfort','eco'] %}
                 {{ [[v, 15] | max, hi] | min if v > 0 else 15 }}
-              {% elif is_state('climate.climate_mensa','heat') and state_attr('climate.climate_mensa','preset_mode') in ['comfort','eco'] and today_at('08:00') <= now() < today_at('18:00') %}
+              {% elif is_state('climate.climate_mensa','heat') and state_attr('climate.climate_mensa','preset_mode') in ['comfort','eco'] and today_at('08:00') <= now() < today_at('18:00') and (state_attr('climate.climate_mensa','current_temperature') | float(0)) < (state_attr('climate.climate_mensa','temperature') | float(0)) + 1 %}
                 {{ [[v, 15] | max, hi] | min if v > 0 else 15 }}
               {% else %}
                 {{ v }}
@@ -76,7 +76,7 @@
                 {{ [v, 16] | max }}
               {% elif is_state('climate.projects_1','cool') and state_attr('climate.projects_1','preset_mode') in ['comfort','eco'] %}
                 {{ [[v, 15] | max, hi] | min if v > 0 else 15 }}
-              {% elif is_state('climate.projects_1','heat') and state_attr('climate.projects_1','preset_mode') in ['comfort','eco'] and today_at('08:00') <= now() < today_at('18:00') %}
+              {% elif is_state('climate.projects_1','heat') and state_attr('climate.projects_1','preset_mode') in ['comfort','eco'] and today_at('08:00') <= now() < today_at('18:00') and (state_attr('climate.projects_1','current_temperature') | float(0)) < (state_attr('climate.projects_1','temperature') | float(0)) + 1 %}
                 {{ [[v, 15] | max, hi] | min if v > 0 else 15 }}
               {% else %}
                 {{ v }}
@@ -119,7 +119,7 @@
                 {{ [v, 16] | max }}
               {% elif is_state('climate.projects_2','cool') and state_attr('climate.projects_2','preset_mode') in ['comfort','eco'] %}
                 {{ [[v, 15] | max, hi] | min if v > 0 else 15 }}
-              {% elif is_state('climate.projects_2','heat') and state_attr('climate.projects_2','preset_mode') in ['comfort','eco'] and today_at('08:00') <= now() < today_at('18:00') %}
+              {% elif is_state('climate.projects_2','heat') and state_attr('climate.projects_2','preset_mode') in ['comfort','eco'] and today_at('08:00') <= now() < today_at('18:00') and (state_attr('climate.projects_2','current_temperature') | float(0)) < (state_attr('climate.projects_2','temperature') | float(0)) + 1 %}
                 {{ [[v, 15] | max, hi] | min if v > 0 else 15 }}
               {% else %}
                 {{ v }}
@@ -170,7 +170,7 @@
                 {{ [v, 16] | max }}
               {% elif is_state('climate.fancoil_dagmar','cool') and state_attr('climate.fancoil_dagmar','preset_mode') in ['comfort','eco'] %}
                 {{ [[v, 15] | max, hi] | min if v > 0 else 15 }}
-              {% elif is_state('climate.fancoil_dagmar','heat') and state_attr('climate.fancoil_dagmar','preset_mode') in ['comfort','eco'] and today_at('08:00') <= now() < today_at('18:00') %}
+              {% elif is_state('climate.fancoil_dagmar','heat') and state_attr('climate.fancoil_dagmar','preset_mode') in ['comfort','eco'] and today_at('08:00') <= now() < today_at('18:00') and (state_attr('climate.fancoil_dagmar','current_temperature') | float(0)) < (state_attr('climate.fancoil_dagmar','temperature') | float(0)) + 1 %}
                 {{ [[v, 15] | max, hi] | min if v > 0 else 15 }}
               {% else %}
                 {{ v }}
@@ -206,7 +206,8 @@
         # on and this zone is cooling, floor the incoming demand at 16% (any
         # preset, day and night) before deriving the 6-speed cascade step.
         # WINTER OFFICE FLOOR (2026-11-02): heat comfort/eco demand stays at
-        # least 16% from 08:00-18:00, keeping fan 09 on LOW (33%).
+        # least 16% from 08:00-18:00, keeping fan 09 on LOW (33%). No floor
+        # once the room is 1 °C or more over target (Dagmar 2026-11-02).
         # DAY CAP (2026-09-22): max 66% per fan 08:00-18:00 (Dagmar), 100% outside.
         - variables:
             v: >
@@ -214,7 +215,7 @@
               {% set hi = 67 if today_at('08:00') <= now() < today_at('18:00') else 100 %}
               {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.fancoil_tania','cool') %}
                 {{ [[raw, 16] | max, hi] | min }}
-              {% elif is_state('climate.fancoil_tania','heat') and state_attr('climate.fancoil_tania','preset_mode') in ['comfort','eco'] and today_at('08:00') <= now() < today_at('18:00') %}
+              {% elif is_state('climate.fancoil_tania','heat') and state_attr('climate.fancoil_tania','preset_mode') in ['comfort','eco'] and today_at('08:00') <= now() < today_at('18:00') and (state_attr('climate.fancoil_tania','current_temperature') | float(0)) < (state_attr('climate.fancoil_tania','temperature') | float(0)) + 1 %}
                 {{ [[raw, 16] | max, hi] | min }}
               {% else %}
                 {{ [raw, hi] | min }}
@@ -568,7 +569,8 @@
         # HEATWAVE FLOOR (2026-08-01) — see Fancoil Tania note. 16%, any
         # preset, day and night, while binary_sensor.heatwave_active is on.
         # WINTER OFFICE FLOOR (2026-11-02): heat comfort/eco demand stays at
-        # least 16% from 08:00-18:00, selecting LOW (33%).
+        # least 16% from 08:00-18:00, selecting LOW (33%). No floor once the
+        # room is 1 °C or more over target (Dagmar 2026-11-02).
         # DAY CAP (2026-09-22): max 66% per fan 08:00-18:00 (Dagmar), 100% outside.
         - variables:
             v: >
@@ -576,7 +578,7 @@
               {% set hi = 67 if today_at('08:00') <= now() < today_at('18:00') else 100 %}
               {% if is_state('binary_sensor.heatwave_active','on') and is_state('climate.fancoil_reception','cool') %}
                 {{ [[raw, 16] | max, hi] | min }}
-              {% elif is_state('climate.fancoil_reception','heat') and state_attr('climate.fancoil_reception','preset_mode') in ['comfort','eco'] and today_at('08:00') <= now() < today_at('18:00') %}
+              {% elif is_state('climate.fancoil_reception','heat') and state_attr('climate.fancoil_reception','preset_mode') in ['comfort','eco'] and today_at('08:00') <= now() < today_at('18:00') and (state_attr('climate.fancoil_reception','current_temperature') | float(0)) < (state_attr('climate.fancoil_reception','temperature') | float(0)) + 1 %}
                 {{ [[raw, 16] | max, hi] | min }}
               {% else %}
                 {{ [raw, hi] | min }}

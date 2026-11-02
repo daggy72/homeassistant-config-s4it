@@ -741,6 +741,7 @@
             and c.state == 'heat'
             and c.attributes.preset_mode in ['comfort','eco']
             and today_at('08:00') <= now() < today_at('18:00')
+            and (c.attributes.current_temperature | float(0)) < (c.attributes.temperature | float(0)) + 1
           ) or (
             c.entity_id in ['climate.climate_mensa','climate.projects_1','climate.projects_2','climate.fancoil_dagmar']
             and c.state == 'cool'
@@ -770,7 +771,7 @@
 
 - id: winter_office_fan_floor_reapply
   alias: Winter office fan floor reapply
-  description: "Reapply daytime VT heating demand when a floored office output is still zero."
+  description: "Reapply daytime VT heating demand when a floored office output is still zero. Floor stops at 1 °C over target (template + stuck-zero) and restarts only below 0.5 °C over (Dagmar 2026-11-02)."
   triggers:
   - trigger: time_pattern
     minutes: '/5'
@@ -802,6 +803,7 @@
           value_template: >
             {{ states(repeat.item) == 'heat'
                and state_attr(repeat.item, 'preset_mode') in ['comfort','eco']
+               and (state_attr(repeat.item, 'current_temperature') | float(0)) < (state_attr(repeat.item, 'temperature') | float(0)) + 0.5
                and zeros | count > 0 }}
         then:
         - action: number.set_value
@@ -2004,7 +2006,8 @@
                      and not (repeat.item.name in ['reception','tania']
                        and states(repeat.item.clim) == 'heat'
                        and state_attr(repeat.item.clim, 'preset_mode') in ['comfort','eco']
-                       and today_at('08:00') <= now() < today_at('18:00'))
+                       and today_at('08:00') <= now() < today_at('18:00')
+                       and (state_attr(repeat.item.clim, 'current_temperature') | float(0)) < (state_attr(repeat.item.clim, 'temperature') | float(0)) + 1)
                      and states(repeat.item.demand) | float(1) == 0
                      and (as_timestamp(now()) - as_timestamp(states[repeat.item.demand].last_changed)) >= 600
                      and fns.on_long }}
