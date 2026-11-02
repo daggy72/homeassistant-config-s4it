@@ -630,6 +630,19 @@
         - condition: template
           value_template: "{{ states(z) == 'heat' }}"
         then:
+        # Temperature FIRST (2026-11-02): preset 'none' restores the last manual
+        # target, and for Office Dagmar that was still 30 °C. For 30 ms VT asked
+        # 100 % and both fancoils stayed at 100 %. Setting 16 first also drops
+        # the preset to 'none', so no 30 °C moment.
+        - if:
+          - condition: template
+            value_template: "{{ (state_attr(z,'temperature') | float(0)) != frost or state_attr(z,'preset_mode') != 'none' }}"
+          then:
+          - action: climate.set_temperature
+            target:
+              entity_id: "{{ z }}"
+            data:
+              temperature: "{{ frost }}"
         - if:
           - condition: template
             value_template: "{{ state_attr(z,'preset_mode') != 'none' }}"
@@ -639,15 +652,6 @@
               entity_id: "{{ z }}"
             data:
               preset_mode: none
-        - if:
-          - condition: template
-            value_template: "{{ (state_attr(z,'temperature') | float(0)) != frost }}"
-          then:
-          - action: climate.set_temperature
-            target:
-              entity_id: "{{ z }}"
-            data:
-              temperature: "{{ frost }}"
 
 - id: winter_morning_preheat
   alias: Winter Morning Preheat (workday 06:00)
