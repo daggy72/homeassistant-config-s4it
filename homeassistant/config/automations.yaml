@@ -775,7 +775,7 @@
 
 - id: winter_office_fan_floor_reapply
   alias: Winter office fan floor reapply
-  description: "Reapply daytime VT heating demand when a floored office output is still zero. Floor stops at 1 °C over target (template + stuck-zero) and restarts only below 0.5 °C over (Dagmar 2026-11-02)."
+  description: "Reapply daytime VT heating demand for analog outputs below 15% or zero 3-speed outputs. Floor stops at 1 °C over target (template + stuck-zero) and restarts only below 0.5 °C over (Dagmar 2026-11-02)."
   triggers:
   - trigger: time_pattern
     minutes: '/5'
@@ -796,7 +796,8 @@
           zeros: >
             {% set ns = namespace(out=[]) %}
             {% for n in states[repeat.item].attributes.vtherm_over_valve.underlying_entities | default([]) %}
-              {% if states(n) | float(0) == 0 %}
+              {% if (repeat.item in ['climate.projects_1', 'climate.projects_2', 'climate.fancoil_dagmar']
+                     and states(n) | float(0) < 15) or states(n) | float(0) == 0 %}
                 {% set ns.out = ns.out + [n] %}
               {% endif %}
             {% endfor %}
