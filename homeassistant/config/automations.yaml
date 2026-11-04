@@ -1270,6 +1270,34 @@
         data:
           preset_mode: comfort
   mode: single
+- id: mensa_winter_morning_eco
+  alias: Mensa Winter Morning Eco (08:00-11:00)
+  description: >
+    2026-11-04 (Dagmar): in winter Mensa is used from lunch, so it does not need
+    comfort (22 °C, fans ~90 %) from 08:00. 30 s after mensa_climate_schedule
+    sets comfort, this sets eco (19 °C); at 11:00 it sets comfort again.
+    Winter workdays only; summer keeps comfort-default.
+  triggers:
+  - trigger: time
+    at: '08:00:30'
+    id: morning_eco
+  - trigger: time
+    at: '11:00:00'
+    id: comfort_start
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.workday_sensor
+    state: 'on'
+  - condition: state
+    entity_id: input_select.climate_season
+    state: winter
+  actions:
+  - action: climate.set_preset_mode
+    target:
+      entity_id: climate.climate_mensa
+    data:
+      preset_mode: "{{ 'eco' if trigger.id == 'morning_eco' else 'comfort' }}"
+  mode: single
 - id: boost_auto_revert
   alias: Boost Auto-Revert (→ comfort after 60 min or target reached)
   description: >
