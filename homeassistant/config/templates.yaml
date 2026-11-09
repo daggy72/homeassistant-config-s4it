@@ -1154,6 +1154,7 @@
           'switch.smart_plug_mini_3',
           'switch.smart_switch_25010986516751513702c4e7ae1293a2_config_overtemp_enable',
           'switch.wallbox_sx_pulsar_max_sn_1381212_pause_resume',
+          'switch.wallbox_pulsar_max_sn_1112020_pause_resume',
         ] %}
         {% set ns = namespace(bad=[]) %}
         {% for s in (states.switch | list) + (states.fan | list) %}
@@ -1173,6 +1174,7 @@
             'switch.smart_plug_mini_3',
             'switch.smart_switch_25010986516751513702c4e7ae1293a2_config_overtemp_enable',
             'switch.wallbox_sx_pulsar_max_sn_1381212_pause_resume',
+            'switch.wallbox_pulsar_max_sn_1112020_pause_resume',
           ] %}
           {% set ns = namespace(bad=[]) %}
           {% for s in (states.switch | list) + (states.fan | list) %}
