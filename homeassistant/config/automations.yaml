@@ -2111,8 +2111,9 @@
       id: position
   actions:
     - if:
-        - condition: trigger
-          id: all
+        # manual run (no trigger id) also publishes everything
+        - condition: template
+          value_template: "{{ trigger.id | default('all') != 'position' }}"
       then:
         - delay: "{{ '00:02:00' if trigger.platform == 'homeassistant' else '00:00:00' }}"
         - repeat:
