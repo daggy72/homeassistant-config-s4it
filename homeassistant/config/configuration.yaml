@@ -22,13 +22,6 @@ logger:
 
 influxdb: !include influxdb.yaml
 
-http:
-  use_x_forwarded_for: true
-  trusted_proxies:
-   - 10.0.10.10      # IP address of the proxy server
-   - 127.0.0.1      # localhost (proxy and HA run on same host)
-   - 172.16.0.0/12   # Docker bridge networks (Cloudflare Tunnel)
-
 auth_oidc:
   client_id: homeassistant
   discovery_url: "https://keycloak.sales4.it/realms/sales4/.well-known/openid-configuration"
@@ -75,3 +68,13 @@ sensor: !include sensors.yaml
 # HA 2026.7.1: telegram_bot no longer supports YAML setup (config-entry/UI
 # only — Settings > Devices & Services > Add Integration > Telegram Bot).
 # No YAML block here; see hosting.md for the setup + entity-id lookup steps.
+
+# Share the Audi Q6 e-tron (audiconnect, runs only here) with the home HA
+# over MQTT (home Mosquitto). Topics: cm1/<domain>/<object_id>/state (+ attributes).
+mqtt_statestream:
+  base_topic: cm1
+  publish_attributes: true
+  publish_timestamps: true
+  include:
+    entity_globs:
+      - "*.outdoor_audi_q6_e_tron_*"
