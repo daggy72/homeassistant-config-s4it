@@ -2092,3 +2092,47 @@
       entity_id: button.entrance_gate_unlock
   mode: single
   max_exceeded: silent
+- id: audi_mqtt_share_full_publish
+  alias: Audi MQTT share - publish all + position JSON
+  description: >-
+    mqtt_statestream (configuration.yaml, base cm1) only sends CHANGED states.
+    This republishes every audiconnect state (retained) at start and hourly, so
+    the home HA always has all values, and keeps cm1/audi/position as one JSON
+    payload for an MQTT device_tracker at home.
+  triggers:
+    - trigger: homeassistant
+      event: start
+      id: all
+    - trigger: time_pattern
+      minutes: 7
+      id: all
+    - trigger: state
+      entity_id: device_tracker.outdoor_audi_q6_e_tron_position
+      id: position
+  actions:
+    - if:
+        - condition: trigger
+          id: all
+      then:
+        - delay: "{{ '00:02:00' if trigger.platform == 'homeassistant' else '00:00:00' }}"
+        - repeat:
+            for_each: "{{ integration_entities('audiconnect') | list }}"
+            sequence:
+              - action: mqtt.publish
+                data:
+                  topic: "cm1/{{ repeat.item.split('.')[0] }}/{{ repeat.item.split('.')[1] }}/state"
+                  payload: "{{ states(repeat.item) }}"
+                  retain: true
+    - variables:
+        t: device_tracker.outdoor_audi_q6_e_tron_position
+    - condition: "{{ state_attr(t, 'latitude') is number }}"
+    - action: mqtt.publish
+      data:
+        topic: cm1/audi/position
+        retain: true
+        payload: >-
+          {{ {'latitude': state_attr(t, 'latitude'),
+              'longitude': state_attr(t, 'longitude'),
+              'gps_accuracy': state_attr(t, 'gps_accuracy') | default(0, true)} | to_json }}
+  mode: queued
+  max: 3
