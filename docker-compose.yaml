@@ -34,7 +34,7 @@ services:
 
   grafana-internal:
     container_name: HA_grafana_internal
-    image: grafana/grafana:13.0.1
+    image: grafana/grafana:13.0.13
     user: "0"
     restart: unless-stopped
     depends_on:
@@ -56,7 +56,7 @@ services:
 
   grafana-wh1:
     container_name: HA_grafana_wh1
-    image: grafana/grafana:13.0.1
+    image: grafana/grafana:13.0.13
     user: "0"
     restart: unless-stopped
     depends_on:
